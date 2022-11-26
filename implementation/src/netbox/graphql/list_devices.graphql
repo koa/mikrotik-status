@@ -1,0 +1,17 @@
+query ListDevices{
+    device_type_list{
+        id
+        tags{
+            slug
+        }
+    }
+    device_list{
+        id
+        tags{
+            slug
+        }
+        device_type{
+            id
+        }
+    }
+}

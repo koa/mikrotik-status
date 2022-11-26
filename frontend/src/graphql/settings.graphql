@@ -1,0 +1,7 @@
+query Settings{
+    settings {
+        authUrl
+        tokenUrl
+        clientId
+    }
+}

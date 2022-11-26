@@ -1,0 +1,21 @@
+query GetDevice($id:Int!){
+    device(id: $id){
+        id
+        name
+        site {
+            id
+        }
+        device_type {
+            model
+        }
+        primary_ip4 {
+            address
+        }
+        primary_ip6 {
+            address
+        }
+        tags {
+            slug
+        }
+    }
+}

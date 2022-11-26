@@ -1,0 +1,5 @@
+query PingDevice($id: Int!){
+    device(id: $id){
+        ping
+    }
+}
