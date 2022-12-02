@@ -26,6 +26,7 @@ openidconnect = { version = "2.2", default-features = false, features = ["reqwes
 js-sys = "0.3.6"
 lazy_static = "1.4.0"
 console_error_panic_hook = "0.1.7"
+itertools = { version = "0.10.5", features = ["use_alloc"] }
 
 
 [build-dependencies]

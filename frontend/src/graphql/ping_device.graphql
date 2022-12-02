@@ -1,5 +1,9 @@
 query PingDevice($id: Int!){
     device(id: $id){
-        ping
+        ping{
+            answer {
+                durationInMs
+            }
+        }
     }
 }

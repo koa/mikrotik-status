@@ -1141,6 +1141,7 @@ dependencies = [
  "console_error_panic_hook",
  "graphql_client",
  "implementation",
+ "itertools",
  "js-sys",
  "lazy_static",
  "log",
@@ -2987,11 +2988,12 @@ dependencies = [
 
 [[package]]
 name = "surge-ping"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d1d85515268a4d0c8dd43f79fae4001d0f47cdce006482b7917af4e3b9fcd79"
+version = "0.7.4"
+source = "git+https://github.com/mokeyish/surge-ping.git?branch=unpriviledged_ping#828fb2721760d1a55e954e703ba2bfa79d116ef5"
 dependencies = [
+ "cfg-if",
  "hex",
+ "once_cell",
  "parking_lot",
  "pnet_packet",
  "rand",

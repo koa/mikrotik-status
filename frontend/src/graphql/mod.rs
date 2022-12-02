@@ -40,7 +40,9 @@ pub async fn query<Q: GraphQLQuery, S: Component>(
         .default_headers(headers)
         .build()?;
     let response = post_graphql::<Q, _>(&client, GRAPHQL_URL.as_str(), request).await?;
-    if let Some(data) = response.data {
+    if let Some(errors) = response.errors {
+        Err(FrontendError::Graphql(errors))
+    } else if let Some(data) = response.data {
         Ok(data)
     } else {
         Err(FrontendError::Graphql(response.errors.unwrap_or_default()))

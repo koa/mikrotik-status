@@ -1,11 +1,12 @@
 use std::collections::HashSet;
 use std::net::IpAddr;
+use std::num::TryFromIntError;
+use std::time::Duration;
 
 use async_graphql::futures_util::future::join_all;
 use async_graphql::Object;
-use log::{error, info};
-
 use ipnet::IpNet;
+use log::{error, info};
 
 use crate::error::BackendError;
 use crate::netbox;
@@ -22,6 +23,14 @@ impl Device {
     }
 }
 
+pub struct PingResult {
+    answer: Option<PingAnswer>,
+}
+
+pub struct PingAnswer {
+    duration: Duration,
+}
+
 #[Object]
 impl Device {
     async fn id(&self) -> i32 {
@@ -31,13 +40,9 @@ impl Device {
             .expect("Cannot parse id of fetched device")
     }
     async fn name(&self) -> &str {
-        self.response
-            .name
-            .as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or("")
+        self.response.name.as_deref().unwrap_or("")
     }
-    async fn ping(&self) -> Result<bool, BackendError> {
+    async fn ping(&self) -> Result<PingResult, BackendError> {
         let ip_addr: IpAddr = if let Some(ipv4) = self.response.primary_ip4.as_ref() {
             Ok(ipv4.address.parse::<IpNet>().unwrap().addr())
         } else if let Some(ipv6) = self.response.primary_ip6.as_ref() {
@@ -51,11 +56,13 @@ impl Device {
         Ok(match ping_result {
             Ok((data, duration)) => {
                 info!("Success: {data:?}, {duration:?}");
-                true
+                PingResult {
+                    answer: Some(PingAnswer { duration }),
+                }
             }
             Err(e) => {
                 error!("Error from ping: {e:?}");
-                false
+                PingResult { answer: None }
             }
         })
     }
@@ -118,4 +125,16 @@ pub async fn list_devices() -> Result<Vec<Device>, BackendError> {
         };
     }
     Ok(results)
+}
+#[Object]
+impl PingAnswer {
+    async fn duration_in_ms(&self) -> Result<u64, TryFromIntError> {
+        self.duration.as_millis().try_into()
+    }
+}
+#[Object]
+impl PingResult {
+    async fn answer(&self) -> &Option<PingAnswer> {
+        &self.answer
+    }
 }
