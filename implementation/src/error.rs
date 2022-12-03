@@ -33,4 +33,6 @@ pub enum BackendError {
     Umbrella(Vec<BackendError>),
     #[error("No ip address found")]
     MissingIpAddress(),
+    #[error("Device {0} not found")]
+    DeviceNotFound(u32),
 }

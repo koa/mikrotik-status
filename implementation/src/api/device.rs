@@ -1,25 +1,26 @@
-use std::collections::HashSet;
 use std::net::IpAddr;
 use std::num::TryFromIntError;
 use std::time::Duration;
 
-use async_graphql::futures_util::future::join_all;
 use async_graphql::Object;
-use ipnet::IpNet;
 use log::{error, info};
 
 use crate::error::BackendError;
-use crate::netbox;
-use crate::netbox::graphql::list_devices::{get_device, list_devices, GetDevice, ListDevices};
+use crate::topology::model::DeviceRef;
+use crate::topology::query::get_topology;
 
 #[derive(Debug)]
-pub struct Device {
-    response: get_device::GetDeviceDevice,
-}
+pub struct Device(DeviceRef);
 
 impl Device {
-    pub fn new(data: get_device::GetDeviceDevice) -> Device {
-        Device { response: data }
+    pub fn new(d: DeviceRef) -> Self {
+        Device(d)
+    }
+}
+
+impl From<DeviceRef> for Device {
+    fn from(d: DeviceRef) -> Self {
+        Device(d)
     }
 }
 
@@ -33,23 +34,17 @@ pub struct PingAnswer {
 
 #[Object]
 impl Device {
-    async fn id(&self) -> i32 {
-        self.response
-            .id
-            .parse()
-            .expect("Cannot parse id of fetched device")
+    async fn id(&self) -> u32 {
+        self.0.get_id()
     }
     async fn name(&self) -> &str {
-        self.response.name.as_deref().unwrap_or("")
+        self.0.get_name()
     }
     async fn ping(&self) -> Result<PingResult, BackendError> {
-        let ip_addr: IpAddr = if let Some(ipv4) = self.response.primary_ip4.as_ref() {
-            Ok(ipv4.address.parse::<IpNet>().unwrap().addr())
-        } else if let Some(ipv6) = self.response.primary_ip6.as_ref() {
-            Ok(ipv6.address.parse::<IpNet>().unwrap().addr())
-        } else {
-            Err(BackendError::MissingIpAddress())
-        }?;
+        let ip_addr: IpAddr = self
+            .0
+            .get_loopback_address()
+            .ok_or(BackendError::MissingIpAddress())?;
 
         info!("Send ping to {ip_addr}");
         let ping_result = surge_ping::ping(ip_addr, &[0; 256]).await;
@@ -68,62 +63,20 @@ impl Device {
     }
 }
 
-pub async fn get_device(id: i64) -> Result<Option<Device>, BackendError> {
-    let found_device = netbox::query::<GetDevice>(get_device::Variables { id }).await?;
-    Ok(found_device.device.map(|d| Device::new(d)))
+pub async fn get_device(id: u32) -> Result<Option<Device>, BackendError> {
+    let topology = get_topology().await?;
+    Ok(topology.get_device_by_id(id).map(|d| Device::new(d)))
 }
 
 pub async fn list_devices() -> Result<Vec<Device>, BackendError> {
-    let device_list = netbox::query::<ListDevices>(list_devices::Variables {}).await?;
-    let routeros_device_types: HashSet<_> = device_list
-        .device_type_list
-        .iter()
-        .flatten()
-        .filter(|type_entry| {
-            type_entry
-                .tags
-                .iter()
-                .flatten()
-                .flatten()
-                .find(|option_tag| option_tag.slug == "routeros")
-                .is_some()
-        })
-        .map(|t| t.id.as_str())
-        .collect();
-
-    let answers = join_all(
-        device_list
-            .device_list
-            .iter()
-            .flatten()
-            .filter(|dev| routeros_device_types.contains(dev.device_type.id.as_str()))
-            .map(|dev| {
-                let id = dev.id.parse()?;
-                Ok(netbox::query::<GetDevice>(get_device::Variables { id }))
-            })
-            .map(|r| async {
-                match r {
-                    Ok(value) => value.await,
-                    Err(e) => Err(e),
-                }
-            }),
-    )
-    .await;
-    let mut errors = Vec::new();
-    let mut results = Vec::with_capacity(answers.len());
-    for answer in answers {
-        match answer {
-            Ok(result) => results.push(Device::new(result.device.expect("taken empty response"))),
-            Err(e) => errors.push(e),
-        }
-    }
-    if !errors.is_empty() {
-        return if errors.len() == 1 {
-            Err(errors.remove(0))
+    let topology = get_topology().await?;
+    let results = topology.list_devices_map(|d| {
+        if d.has_routeros() {
+            Some(Device::new(d))
         } else {
-            Err(BackendError::Umbrella(errors))
-        };
-    }
+            None
+        }
+    });
     Ok(results)
 }
 #[Object]

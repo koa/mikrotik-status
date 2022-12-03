@@ -16,7 +16,7 @@ impl Query {
     async fn devices(&self) -> Result<Vec<Device>, BackendError> {
         list_devices().await
     }
-    async fn device(&self, id: i64) -> Result<Option<Device>, BackendError> {
+    async fn device(&self, id: u32) -> Result<Option<Device>, BackendError> {
         get_device(id).await
     }
 }

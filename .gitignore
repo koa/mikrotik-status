@@ -3,5 +3,5 @@
 /frontend/graphql/schema.graphql
 /frontend/node/node_modules/
 /frontend/dist/
-/implementation/src/netbox/graphql/.graphqlconfig
+.graphqlconfig
 /config.yaml

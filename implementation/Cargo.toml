@@ -17,3 +17,4 @@ thiserror = "1.0.37"
 #surge-ping = "0.7.3"
 surge-ping = { git = "https://github.com/mokeyish/surge-ping.git", branch = "unpriviledged_ping" }
 ipnet = "2.5.1"
+cached = "0.40.0"

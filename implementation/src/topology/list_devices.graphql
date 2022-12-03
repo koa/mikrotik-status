@@ -1,0 +1,32 @@
+query ListAllDevices{
+    device_type_list{
+        id
+        tags{
+            slug
+        }
+    }
+    device_list{
+        id
+        name
+        tags{
+            slug
+        }
+        device_type{
+            id
+        }
+        interfaces {
+            name
+            ip_addresses {
+                address
+                role
+            }
+        }
+        frontports {
+            name
+            rear_port {
+                name
+
+            }
+        }
+    }
+}
