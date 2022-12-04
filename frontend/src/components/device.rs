@@ -20,7 +20,7 @@ pub struct DeviceComponent {
     ping_result: Option<PingDeviceDevicePing>,
     error: Option<String>,
 }
-#[derive(Clone, PartialEq, Properties)]
+#[derive(Clone, PartialEq, Eq, Properties)]
 pub struct DeviceProperties {
     pub data: Rc<ListDevicesDevices>,
 }
@@ -69,7 +69,7 @@ impl Component for DeviceComponent {
                 }
             }
         } else if let Some(error) = self.error.as_ref() {
-            html!(<Label color={Color::Orange} label={error.clone()}/>)
+            html!(<Label color={Color::Grey} label={error.clone()}/>)
         } else {
             html!(<Label label="pending"/>)
         };

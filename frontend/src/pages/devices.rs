@@ -1,7 +1,9 @@
+use itertools::Itertools;
 use std::rc::Rc;
 
 use log::error;
 use wasm_bindgen_futures::spawn_local;
+use yew::classes;
 use yew::{html, Component, Context, Html};
 
 use crate::components::device::DeviceComponent;
@@ -30,7 +32,7 @@ impl Component for DeviceList {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             DeviceListMessage::UpdateDevices(devices) => {
-                self.visible_devices = devices.into_iter().map(|dev| Rc::new(dev)).collect();
+                self.visible_devices = devices.into_iter().map(Rc::new).collect();
                 true
             }
         }
@@ -48,10 +50,14 @@ impl Component for DeviceList {
                 </svg>
             }
         } else {
-            self.visible_devices
+            let device_cards = self
+                .visible_devices
                 .iter()
-                .map(|data| html! {<DeviceComponent {data}/>})
-                .collect::<Html>()
+                .map(|data| {
+                    html! {<DeviceComponent {data}/>}
+                })
+                .collect::<Html>();
+            html! {<div class={classes!("card-grid")}>{device_cards}</div>}
         }
     }
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
