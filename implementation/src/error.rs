@@ -4,6 +4,8 @@ use std::num::ParseIntError;
 
 use thiserror::Error;
 
+use crate::topology::query::NetboxError;
+
 #[derive(Debug)]
 pub struct GraphqlError(Vec<graphql_client::Error>);
 
@@ -23,16 +25,16 @@ impl Error for GraphqlError {}
 
 #[derive(Error, Debug)]
 pub enum BackendError {
-    #[error("Error calling api")]
+    #[error("Error calling api: {0}")]
     Reqwest(#[from] reqwest::Error),
-    #[error("Error from remote server")]
+    #[error("Error from remote server: {0}")]
     Graphql(GraphqlError),
-    #[error("Error Parsing integer")]
+    #[error("Error Parsing integer: {0}")]
     ParseInt(#[from] ParseIntError),
     #[error("Multiple Errors")]
     Umbrella(Vec<BackendError>),
     #[error("No ip address found")]
     MissingIpAddress(),
-    #[error("Device {0} not found")]
-    DeviceNotFound(u32),
+    #[error("Error from Netbox: {0}")]
+    NetboxError(#[from] NetboxError),
 }

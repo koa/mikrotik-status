@@ -1,20 +1,51 @@
 use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use cached::proc_macro::cached;
+use graphql_client::{GraphQLQuery, Response};
 use ipnet::IpNet;
+use log::debug;
+use reqwest::header::AUTHORIZATION;
+use thiserror::Error;
 
-use crate::error::BackendError;
-use crate::netbox::query;
+use crate::config::CONFIG;
+use crate::error::{BackendError, GraphqlError};
 use crate::topology::graphql_operations::list_all_devices::IpamIPAddressRoleChoices;
 use crate::topology::graphql_operations::ListAllDevices;
-use crate::topology::model::{Device, DevicePort, Topology};
-use log::info;
+use crate::topology::model::Topology;
+
+enum PortType {
+    Interface,
+    Front,
+    Rear,
+}
+
+#[derive(Debug, Error)]
+pub enum NetboxError {
+    #[error("Unknown Port type: {0}")]
+    UnknownPortType(String),
+    #[error("Device {0} not found")]
+    DeviceNotFound(u32),
+}
+
+impl FromStr for PortType {
+    type Err = NetboxError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "interface" => Ok(PortType::Interface),
+            "frontport" => Ok(PortType::Front),
+            "rearport" => Ok(PortType::Rear),
+            unknown => Err(NetboxError::UnknownPortType(unknown.to_string())),
+        }
+    }
+}
 
 #[cached(result, time = 30, time_refresh)]
 pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
-    info!("Fetch Topology");
-    let device_list = query::<ListAllDevices>(Default::default()).await?;
+    let device_list = query_netbox::<ListAllDevices>(Default::default()).await?;
     let routeros_device_types: HashSet<_> = device_list
         .device_type_list
         .iter()
@@ -31,15 +62,20 @@ pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
         .collect();
     let mut topo_builder = Topology::builder();
     let mut device_id_map = HashMap::new();
-    for device_entry in device_list.device_list.iter().flatten() {
+    let mut device_interface_map = HashMap::new();
+    let mut device_front_map = HashMap::new();
+    let mut device_rear_map = HashMap::new();
+    for device_entry in device_list.device_list.into_iter().flatten() {
         let has_routeros = routeros_device_types.contains(device_entry.device_type.id.as_str());
-        let mut device_builder = Device::builder(
+        let mut device_builder = topo_builder.append_device(
             device_entry.id.parse()?,
             device_entry.name.clone().unwrap_or_default(),
             has_routeros,
         );
-        for if_port in device_entry.interfaces.iter() {
-            let name = &if_port.name;
+        let mut if_idx = Vec::with_capacity(device_entry.interfaces.len());
+        for if_port in device_entry.interfaces {
+            let id: u32 = if_port.id.parse()?;
+            let name = if_port.name;
             let mut ipv6_address = None;
             let mut ipv4_address = None;
             let mut is_loopback = false;
@@ -56,16 +92,62 @@ pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
                     }
                 }
             }
-            device_builder.append_port(DevicePort::new_interface(
-                name,
-                ipv4_address,
-                ipv6_address,
-                is_loopback,
+            if_idx.push((
+                id,
+                device_builder.append_interface(id, name, ipv4_address, ipv6_address, is_loopback),
             ));
         }
+        let mut rear_idx_list = Vec::with_capacity(device_entry.frontports.len());
+        let mut front_idx_list = Vec::with_capacity(device_entry.frontports.len());
+        for front_port in device_entry.frontports {
+            let rear_port = front_port.rear_port;
+            let rear_id = rear_port.id.parse()?;
+            let rear_idx = device_builder.append_rear_port(rear_id, rear_port.name);
+            rear_idx_list.push((rear_id, rear_idx));
+            let front_id = front_port.id.parse()?;
+            let front_idx = device_builder.append_front_port(front_id, front_port.name, rear_idx);
+            front_idx_list.push((front_id, front_idx));
+        }
 
-        topo_builder.append_device(device_builder.build());
-        device_id_map.insert(device_entry.id.clone(), 0);
+        let dev_idx = device_builder.build();
+        for (port_id, port_idx) in if_idx {
+            device_interface_map.insert(port_id, (dev_idx, port_idx));
+        }
+        for (port_id, port_idx) in rear_idx_list {
+            device_rear_map.insert(port_id, (dev_idx, port_idx));
+        }
+        for (port_id, port_idx) in front_idx_list {
+            device_front_map.insert(port_id, (dev_idx, port_idx));
+        }
+        device_id_map.insert(device_entry.id.clone(), dev_idx);
     }
     Ok(topo_builder.build())
+}
+
+pub async fn query_netbox<Q>(request: Q::Variables) -> Result<Q::ResponseData, BackendError>
+where
+    Q: GraphQLQuery,
+    Q::Variables: Debug,
+    Q::ResponseData: Debug,
+{
+    let request_body = Q::build_query(request);
+    let name = request_body.operation_name;
+    debug!("Graphql Request {name}: {request_body:?}");
+    let client = reqwest::Client::new();
+    let response: Response<Q::ResponseData> = client
+        .post(&CONFIG.netbox.endpoint)
+        .json(&request_body)
+        .header(AUTHORIZATION, format!("Token {}", &CONFIG.netbox.token))
+        .send()
+        .await?
+        .json()
+        .await?;
+    if let Some(data) = response.data {
+        debug!("Graphql Response {name}: {data:?}");
+        Ok(data)
+    } else {
+        let error = GraphqlError::new(response.errors);
+        debug!("Graphql Error {name}: {error:?}");
+        Err(BackendError::Graphql(error))
+    }
 }

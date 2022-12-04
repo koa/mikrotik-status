@@ -83,9 +83,14 @@ pub struct TopologyBuilder {
 }
 
 impl TopologyBuilder {
-    pub fn append_device(&mut self, device: Device) -> usize {
-        self.devices.push(device);
-        self.devices.len() - 1
+    pub fn append_device(&mut self, id: u32, name: String, has_routeros: bool) -> DeviceBuilder {
+        DeviceBuilder {
+            topo_builder: self,
+            id,
+            name,
+            ports: vec![],
+            has_routeros,
+        }
     }
     pub fn append_link(&mut self) -> LinkBuilder {
         LinkBuilder {
@@ -127,75 +132,90 @@ pub struct Device {
     has_routeros: bool,
 }
 
-impl Device {
-    pub fn builder(id: u32, name: String, has_routeros: bool) -> DeviceBuilder {
-        DeviceBuilder {
-            id,
-            name,
-            ports: vec![],
-            has_routeros,
-        }
-    }
-}
+impl Device {}
 
-pub struct DeviceBuilder {
+pub struct DeviceBuilder<'a> {
+    topo_builder: &'a mut TopologyBuilder,
     id: u32,
     name: String,
     ports: Vec<DevicePort>,
     has_routeros: bool,
 }
 
-impl DeviceBuilder {
+impl DeviceBuilder<'_> {
+    pub fn append_interface(
+        &mut self,
+        id: u32,
+        name: String,
+        v4_address: Option<Ipv4Net>,
+        v6_address: Option<Ipv6Net>,
+        loopback: bool,
+    ) -> usize {
+        self.ports.push(DevicePort::Interface {
+            id,
+            name,
+            v4_address,
+            v6_address,
+            loopback,
+        });
+        self.ports.len() - 1
+    }
+    pub fn append_front_port(&mut self, id: u32, name: String, rear_port_idx: usize) -> usize {
+        self.ports.push(DevicePort::FrontPort {
+            id,
+            name,
+            rear_port_idx,
+        });
+        self.ports.len() - 1
+    }
+
+    pub fn append_rear_port(&mut self, id: u32, name: String) -> usize {
+        self.ports.push(DevicePort::RearPort { id, name });
+        self.ports.len() - 1
+    }
+
     pub fn append_port(&mut self, port: DevicePort) -> usize {
         self.ports.push(port);
         self.ports.len() - 1
     }
-    pub(crate) fn build(self) -> Device {
-        Device {
+    pub(crate) fn build(self) -> usize {
+        let device = Device {
             id: self.id,
             name: self.name,
             ports: self.ports.into_iter().map(Arc::new).collect(),
             has_routeros: self.has_routeros,
-        }
+        };
+        self.topo_builder.devices.push(device);
+        self.topo_builder.devices.len() - 1
     }
 }
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum DevicePort {
     Interface {
+        id: u32,
         name: String,
         v4_address: Option<Ipv4Net>,
         v6_address: Option<Ipv6Net>,
         loopback: bool,
     },
     FrontPort {
+        id: u32,
         name: String,
         rear_port_idx: usize,
     },
     RearPort {
+        id: u32,
         name: String,
     },
 }
 
 impl DevicePort {
-    pub fn new_interface<S: Into<String>>(
-        name: S,
-        v4_address: Option<Ipv4Net>,
-        v6_address: Option<Ipv6Net>,
-        loopback: bool,
-    ) -> DevicePort {
-        DevicePort::Interface {
-            name: name.into(),
-            v4_address,
-            v6_address,
-            loopback,
-        }
-    }
     pub fn get_name(&self) -> &str {
         match self {
             DevicePort::Interface { name, .. } => name,
             DevicePort::FrontPort { name, .. } => name,
-            DevicePort::RearPort { name } => name,
+            DevicePort::RearPort { name, .. } => name,
         }
     }
 }
@@ -261,8 +281,9 @@ impl LinkBuilder<'_> {
         });
         Ok(self.path.len() - 1)
     }
-    pub fn build(self) {
+    pub fn build(self) -> usize {
         self.topo_builder.links.push(Link { path: self.path });
+        self.topo_builder.links.len() - 1
     }
 }
 
@@ -304,6 +325,7 @@ impl DeviceRef {
             .iter()
             .flat_map(|p| match p.deref() {
                 DevicePort::Interface {
+                    id: _,
                     name: _,
                     v4_address,
                     v6_address,
@@ -402,49 +424,53 @@ pub struct LinkPortRef {
 
 #[cfg(test)]
 mod tests {
-    use crate::topology::model::{Device, DevicePort, Topology};
+    use crate::topology::model::{DevicePort, Topology};
 
     #[test]
     fn test_build_topology() {
         let mut topology_builder = Topology::builder();
         let mut rt01_ports = Vec::new();
         let rt01_idx = {
-            let mut device_builder = Device::builder(1, "rt01".to_string(), true);
-            device_builder.append_port(DevicePort::new_interface(
-                "loopback",
-                Option::Some("172.16.0.1/32".parse().unwrap()),
+            let mut device_builder = topology_builder.append_device(1, "rt01".to_string(), true);
+            device_builder.append_interface(
+                1,
+                "loopback".to_string(),
+                Some("172.16.0.1/32".parse().unwrap()),
                 None,
                 true,
-            ));
+            );
             for port_idx in 1..=8 {
-                rt01_ports.push(device_builder.append_port(DevicePort::new_interface(
+                device_builder.append_interface(
+                    port_idx + 1,
                     format!("e{port_idx:02}"),
                     None,
                     None,
                     false,
-                )));
+                );
             }
-            topology_builder.append_device(device_builder.build())
+            device_builder.build()
         };
         let mut rt02_ports = Vec::new();
         let rt02_idx = {
-            let mut device_builder = Device::builder(2, "rt02".to_string(), true);
-            device_builder.append_port(DevicePort::new_interface(
-                "loopback",
-                Option::Some("172.16.0.2/32".parse().unwrap()),
+            let mut device_builder = topology_builder.append_device(2, "rt02".to_string(), true);
+            device_builder.append_interface(
+                10,
+                "loopback".to_string(),
+                Some("172.16.0.2/32".parse().unwrap()),
                 None,
                 true,
-            ));
+            );
             for port_idx in 1..=8 {
-                rt02_ports.push(device_builder.append_port(DevicePort::new_interface(
+                device_builder.append_interface(
+                    port_idx + 11,
                     format!("e{port_idx:02}"),
                     None,
                     None,
                     false,
-                )));
+                );
             }
 
-            topology_builder.append_device(device_builder.build())
+            device_builder.build()
         };
         let mut link_builder = topology_builder.append_link();
         link_builder

@@ -15,6 +15,7 @@ query ListAllDevices{
             id
         }
         interfaces {
+            id
             name
             ip_addresses {
                 address
@@ -22,10 +23,51 @@ query ListAllDevices{
             }
         }
         frontports {
+            id
             name
             rear_port {
+                id
                 name
-
+            }
+        }
+        rack {
+            id
+        }
+        position
+        location {
+            id
+        }
+    }
+    site_list{
+        id
+        name
+        physical_address
+    }
+    location_list{
+        id
+        name
+        site {
+            id
+        }
+    }
+    rack_list{
+        id
+        location {
+            id
+        }
+        site {
+            id
+        }
+    }
+    cable_list{
+        id
+        length
+        length_unit
+        terminations {
+            termination_id
+            termination_type {
+                id
+                model
             }
         }
     }

@@ -3,7 +3,6 @@ use std::num::TryFromIntError;
 use std::time::Duration;
 
 use async_graphql::Object;
-use log::{error, info};
 
 use crate::error::BackendError;
 use crate::topology::model::DeviceRef;
@@ -46,17 +45,17 @@ impl Device {
             .get_loopback_address()
             .ok_or(BackendError::MissingIpAddress())?;
 
-        info!("Send ping to {ip_addr}");
+        //info!("Send ping to {ip_addr}");
         let ping_result = surge_ping::ping(ip_addr, &[0; 256]).await;
         Ok(match ping_result {
-            Ok((data, duration)) => {
-                info!("Success: {data:?}, {duration:?}");
+            Ok((_data, duration)) => {
+                //      info!("Success: {data:?}, {duration:?}");
                 PingResult {
                     answer: Some(PingAnswer { duration }),
                 }
             }
             Err(e) => {
-                error!("Error from ping: {e:?}");
+                //    error!("Error from ping: {e:?}");
                 PingResult { answer: None }
             }
         })
