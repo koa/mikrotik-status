@@ -1,4 +1,4 @@
-query ListAllDevices{
+query FetchTopology{
     device_type_list{
         id
         tags{
@@ -42,12 +42,9 @@ query ListAllDevices{
         id
         name
         physical_address
-    }
-    location_list{
-        id
-        name
-        site {
+        locations {
             id
+            name
         }
     }
     rack_list{

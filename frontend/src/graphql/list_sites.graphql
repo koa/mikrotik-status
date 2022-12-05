@@ -1,0 +1,7 @@
+query ListSites{
+    sites {
+        id
+        name
+        address
+    }
+}

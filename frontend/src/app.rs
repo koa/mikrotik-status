@@ -28,9 +28,12 @@ use crate::graphql::query;
 use crate::graphql::settings::settings::{ResponseData, SettingsSettings};
 use crate::graphql::settings::{settings, Settings};
 use crate::pages::devices::DeviceList;
+use crate::pages::sites::SiteList;
 
 #[derive(Switch, Debug, Clone, PartialEq, Eq)]
 pub enum AppRoute {
+    #[to = "/sites"]
+    Sites,
     #[to = "/devices"]
     Devices,
     #[to = "/"]
@@ -52,6 +55,7 @@ impl App {
                 match switch {
                     AppRoute::Home => html! {<h1>{"Home"}</h1>},
                     AppRoute::Devices => html! {<DeviceList/>},
+                    AppRoute::Sites => html! {<SiteList/>},
                 },
                 true,
             )
@@ -77,8 +81,9 @@ impl App {
             <PageSidebar>
                 <Nav>
                     <NavRouterItem<AppRoute> to={AppRoute::Home}>{"Start"}</NavRouterItem<AppRoute>>
-                    <NavRouterItem<AppRoute> to={AppRoute::Devices}>{"Devices"}</NavRouterItem<AppRoute>>
-                    <span onclick={logout}><NavItem>{"Logout"}</NavItem></span>
+                    <NavRouterItem<AppRoute> to={AppRoute::Sites}>{"Gebäude"}</NavRouterItem<AppRoute>>
+                    <NavRouterItem<AppRoute> to={AppRoute::Devices}>{"Geräte"}</NavRouterItem<AppRoute>>
+                    <span onclick={logout}><NavItem>{"Abmelden"}</NavItem></span>
                 </Nav>
             </PageSidebar>
             }
@@ -149,7 +154,7 @@ impl yew::Component for App {
             }
         } else {
             html! {
-                <h1>{"Loading settings"}</h1>
+                <h1>{"Connecting to server"}</h1>
             }
         }
     }

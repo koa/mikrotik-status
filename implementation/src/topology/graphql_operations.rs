@@ -2,7 +2,6 @@ use std::fmt::Formatter;
 use std::ops::Deref;
 
 use graphql_client::GraphQLQuery;
-use log::info;
 use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer};
 
@@ -60,8 +59,8 @@ impl Deref for Decimal {
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "schema/netbox.graphql",
-    query_path = "src/topology/list_devices.graphql",
+    query_path = "src/topology/fetch_topology.graphql",
     response_derives = "Debug",
     variables_derives = "Default,Debug"
 )]
-pub struct ListAllDevices;
+pub struct FetchTopology;

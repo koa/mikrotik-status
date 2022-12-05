@@ -5,6 +5,7 @@ use crate::api::query::Query;
 pub mod device;
 pub mod query;
 pub mod settings;
+pub mod site;
 
 pub type GraphqlSchema = Schema<Query, EmptyMutation, EmptySubscription>;
 

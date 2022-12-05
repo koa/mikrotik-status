@@ -23,8 +23,11 @@ pub enum TopologyError {
 pub struct Topology {
     devices: Vec<Arc<Device>>,
     links: Vec<Arc<Link>>,
+    sites: Vec<Arc<Site>>,
     link_index: HashMap<PortIdx, usize>,
     device_index: HashMap<u32, usize>,
+    site_index: HashMap<u32, usize>,
+    location_index: HashMap<u32, LocationIdx>,
 }
 
 impl Topology {
@@ -74,12 +77,38 @@ impl Topology {
             .flat_map(filter)
             .collect()
     }
+    pub fn get_site(self: &Arc<Self>, idx: usize) -> Option<SiteRef> {
+        self.sites.get(idx).map(|found| SiteRef {
+            topology: self.clone(),
+            site: found.clone(),
+            site_idx: idx,
+        })
+    }
+    pub fn get_site_by_id(self: &Arc<Self>, key: u32) -> Option<SiteRef> {
+        self.get_site(*self.site_index.get(&key)?)
+    }
+    pub fn list_sites(self: &Arc<Self>) -> Vec<SiteRef> {
+        self.list_sites_map(|s| Some(s))
+    }
+    pub fn list_sites_map<P: Fn(SiteRef) -> Option<T>, T>(self: &Arc<Self>, filter: P) -> Vec<T> {
+        self.sites
+            .iter()
+            .enumerate()
+            .map(|(idx, found)| SiteRef {
+                topology: self.clone(),
+                site: found.clone(),
+                site_idx: idx,
+            })
+            .flat_map(filter)
+            .collect()
+    }
 }
 
 #[derive(Default)]
 pub struct TopologyBuilder {
     devices: Vec<Device>,
     links: Vec<Link>,
+    sites: Vec<Site>,
 }
 
 impl TopologyBuilder {
@@ -96,6 +125,15 @@ impl TopologyBuilder {
         LinkBuilder {
             topo_builder: self,
             path: vec![],
+        }
+    }
+    pub fn append_site(&mut self, id: u32, name: String, address: String) -> SiteBuilder {
+        SiteBuilder {
+            topo_builder: self,
+            id,
+            name,
+            address,
+            locations: vec![],
         }
     }
     pub fn build(self) -> Arc<Topology> {
@@ -115,11 +153,31 @@ impl TopologyBuilder {
             device_index.insert(device.id.clone(), devices.len());
             devices.push(Arc::new(device));
         }
+        let mut sites = Vec::with_capacity(self.sites.len());
+        let mut site_index = HashMap::new();
+        let mut location_index = HashMap::new();
+        for site in self.sites {
+            let site_idx = sites.len();
+            for (location_idx, location) in site.locations.iter().enumerate() {
+                location_index.insert(
+                    location.id,
+                    LocationIdx {
+                        site_idx,
+                        location_idx,
+                    },
+                );
+            }
+            site_index.insert(site.id, site_idx);
+            sites.push(Arc::new(site));
+        }
         Arc::new(Topology {
             devices,
             links,
+            sites,
             link_index,
             device_index,
+            site_index,
+            location_index,
         })
     }
 }
@@ -132,7 +190,18 @@ pub struct Device {
     has_routeros: bool,
 }
 
-impl Device {}
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub struct Site {
+    id: u32,
+    name: String,
+    address: String,
+    locations: Vec<Location>,
+}
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub struct Location {
+    id: u32,
+    name: String,
+}
 
 pub struct DeviceBuilder<'a> {
     topo_builder: &'a mut TopologyBuilder,
@@ -292,6 +361,11 @@ pub struct PortIdx {
     device_idx: usize,
     port_idx: usize,
 }
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
+pub struct LocationIdx {
+    site_idx: usize,
+    location_idx: usize,
+}
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
 pub struct LinkSegment {
@@ -302,6 +376,30 @@ pub struct LinkSegment {
 impl LinkSegment {
     fn ports(&self) -> [&PortIdx; 2] {
         [&self.left_port, &self.right_port]
+    }
+}
+
+pub struct SiteBuilder<'a> {
+    topo_builder: &'a mut TopologyBuilder,
+    id: u32,
+    name: String,
+    address: String,
+    locations: Vec<Location>,
+}
+
+impl<'a> SiteBuilder<'a> {
+    pub fn append_location(&mut self, id: u32, name: String) -> usize {
+        self.locations.push(Location { id, name });
+        self.locations.len() - 1
+    }
+    pub fn build(self) -> usize {
+        self.topo_builder.sites.push(Site {
+            id: self.id,
+            name: self.name,
+            address: self.address,
+            locations: self.locations,
+        });
+        self.topo_builder.sites.len() - 1
     }
 }
 
@@ -316,9 +414,7 @@ impl DeviceRef {
     pub(crate) fn has_routeros(&self) -> bool {
         self.device.has_routeros
     }
-}
 
-impl DeviceRef {
     pub(crate) fn get_loopback_address(&self) -> Option<IpAddr> {
         self.device
             .ports
@@ -339,9 +435,7 @@ impl DeviceRef {
             })
             .next()
     }
-}
 
-impl DeviceRef {
     pub(crate) fn get_id(&self) -> u32 {
         self.device.id
     }
@@ -421,10 +515,28 @@ pub struct LinkPortRef {
     link: Arc<Link>,
     hit_idx: Vec<(PortSide, usize)>,
 }
+#[derive(Debug)]
+pub struct SiteRef {
+    topology: Arc<Topology>,
+    site: Arc<Site>,
+    site_idx: usize,
+}
+
+impl SiteRef {
+    pub(crate) fn get_id(&self) -> u32 {
+        self.site.id
+    }
+    pub fn get_name(&self) -> &str {
+        &self.site.name
+    }
+    pub fn get_address(&self) -> &str {
+        &self.site.address
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    use crate::topology::model::{DevicePort, Topology};
+    use crate::topology::model::Topology;
 
     #[test]
     fn test_build_topology() {

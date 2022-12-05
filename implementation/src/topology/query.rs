@@ -12,8 +12,8 @@ use thiserror::Error;
 
 use crate::config::CONFIG;
 use crate::error::{BackendError, GraphqlError};
-use crate::topology::graphql_operations::list_all_devices::IpamIPAddressRoleChoices;
-use crate::topology::graphql_operations::ListAllDevices;
+use crate::topology::graphql_operations::fetch_topology::IpamIPAddressRoleChoices;
+use crate::topology::graphql_operations::FetchTopology;
 use crate::topology::model::Topology;
 
 enum PortType {
@@ -45,8 +45,8 @@ impl FromStr for PortType {
 
 #[cached(result, time = 30, time_refresh)]
 pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
-    let device_list = query_netbox::<ListAllDevices>(Default::default()).await?;
-    let routeros_device_types: HashSet<_> = device_list
+    let netbox_topology = query_netbox::<FetchTopology>(Default::default()).await?;
+    let routeros_device_types: HashSet<_> = netbox_topology
         .device_type_list
         .iter()
         .flatten()
@@ -65,7 +65,7 @@ pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
     let mut device_interface_map = HashMap::new();
     let mut device_front_map = HashMap::new();
     let mut device_rear_map = HashMap::new();
-    for device_entry in device_list.device_list.into_iter().flatten() {
+    for device_entry in netbox_topology.device_list.into_iter().flatten() {
         let has_routeros = routeros_device_types.contains(device_entry.device_type.id.as_str());
         let mut device_builder = topo_builder.append_device(
             device_entry.id.parse()?,
@@ -120,6 +120,19 @@ pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
             device_front_map.insert(port_id, (dev_idx, port_idx));
         }
         device_id_map.insert(device_entry.id.clone(), dev_idx);
+    }
+    for site in netbox_topology.site_list.into_iter().flatten() {
+        let id = site.id.parse()?;
+        let name = site.name;
+        let address = site.physical_address;
+        let mut site_builder = topo_builder.append_site(id, name, address);
+        for location in site.locations {
+            let id = location.id.parse()?;
+            let name = location.name;
+            site_builder.append_location(id, name);
+        }
+
+        site_builder.build();
     }
     Ok(topo_builder.build())
 }

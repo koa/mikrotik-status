@@ -11,6 +11,7 @@ use crate::error::FrontendError;
 
 pub mod devices;
 pub mod settings;
+pub mod sites;
 
 lazy_static! {
     static ref GRAPHQL_URL: String = format!("{}/graphql", host());
