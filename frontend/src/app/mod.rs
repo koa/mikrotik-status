@@ -3,7 +3,6 @@ use log::error;
 use patternfly_yew::BackdropViewer;
 use patternfly_yew::Nav;
 use patternfly_yew::NavItem;
-use patternfly_yew::NavRouterItem;
 use patternfly_yew::Page;
 use patternfly_yew::PageSidebar;
 use patternfly_yew::ToastViewer;
@@ -24,21 +23,13 @@ use yew_oauth2::prelude::NotAuthenticated;
 use yew_router::prelude::Switch;
 use yew_router::router::{Render, Router};
 
+use route::AppRoute;
+
 use crate::graphql::query;
 use crate::graphql::settings::settings::{ResponseData, SettingsSettings};
 use crate::graphql::settings::{settings, Settings};
-use crate::pages::devices::DeviceList;
-use crate::pages::sites::SiteList;
 
-#[derive(Switch, Debug, Clone, PartialEq, Eq)]
-pub enum AppRoute {
-    #[to = "/sites"]
-    Sites,
-    #[to = "/devices"]
-    Devices,
-    #[to = "/"]
-    Home,
-}
+pub mod route;
 
 lazy_static! {
     static ref HOME_URL: Url = format!("{}/", crate::graphql::host()).parse().unwrap();
@@ -50,16 +41,7 @@ pub struct App {
 
 impl App {
     fn switch_main() -> Render<AppRoute, ()> {
-        Router::render(|switch| {
-            Self::page(
-                match switch {
-                    AppRoute::Home => html! {<h1>{"Home"}</h1>},
-                    AppRoute::Devices => html! {<DeviceList/>},
-                    AppRoute::Sites => html! {<SiteList/>},
-                },
-                true,
-            )
-        })
+        Router::render(|switch: AppRoute| Self::page(switch.main_content(), true))
     }
     fn switch_unauthenticated() -> Render<AppRoute, ()> {
         Router::render(|switch| match switch {
@@ -76,13 +58,12 @@ impl App {
         let login: Callback<MouseEvent> = Callback::from(|_: MouseEvent| {
             OAuth2Dispatcher::<Client>::new().start_login();
         });
+
         let sidebar = if logged_in {
             html_nested! {
             <PageSidebar>
                 <Nav>
-                    <NavRouterItem<AppRoute> to={AppRoute::Home}>{"Start"}</NavRouterItem<AppRoute>>
-                    <NavRouterItem<AppRoute> to={AppRoute::Sites}>{"Gebäude"}</NavRouterItem<AppRoute>>
-                    <NavRouterItem<AppRoute> to={AppRoute::Devices}>{"Geräte"}</NavRouterItem<AppRoute>>
+                    {AppRoute::main_menu()}
                     <span onclick={logout}><NavItem>{"Abmelden"}</NavItem></span>
                 </Nav>
             </PageSidebar>
