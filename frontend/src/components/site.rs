@@ -26,7 +26,7 @@ impl Component for SiteComponent {
         }
     }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         let title = html! {
             <>
                 {self.data.name.as_str()}

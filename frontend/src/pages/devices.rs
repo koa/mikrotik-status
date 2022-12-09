@@ -22,13 +22,13 @@ impl Component for DeviceList {
     type Message = DeviceListMessage;
     type Properties = ();
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         DeviceList {
             visible_devices: Vec::new(),
         }
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             DeviceListMessage::UpdateDevices(devices) => {
                 self.visible_devices = devices.into_iter().map(Rc::new).collect();
@@ -37,7 +37,7 @@ impl Component for DeviceList {
         }
     }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         if self.visible_devices.is_empty() {
             html! {
                 <svg

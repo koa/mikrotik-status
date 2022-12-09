@@ -42,7 +42,7 @@ impl Component for DeviceComponent {
         }
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             DeviceUpdateMessage::PingResult(status) => {
                 self.ping_result = Some(status);
@@ -55,7 +55,7 @@ impl Component for DeviceComponent {
         }
     }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         let title = html! {
             <>
                 {self.data.name.as_str()}

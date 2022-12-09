@@ -3,6 +3,7 @@ use std::num::TryFromIntError;
 use std::time::Duration;
 
 use async_graphql::Object;
+use log::warn;
 
 use crate::error::BackendError;
 use crate::topology::model::DeviceRef;
@@ -55,7 +56,7 @@ impl Device {
                 }
             }
             Err(e) => {
-                //    error!("Error from ping: {e:?}");
+                warn!("Error from ping: {e:?}");
                 PingResult { answer: None }
             }
         })

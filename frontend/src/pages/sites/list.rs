@@ -22,12 +22,12 @@ impl Component for SiteList {
     type Message = SiteListMsg;
     type Properties = ();
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
             visible_sites: vec![],
         }
     }
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             SiteListMsg::UpdateSites(sites) => {
                 self.visible_sites = sites.into_iter().map(Rc::new).collect();
@@ -36,7 +36,7 @@ impl Component for SiteList {
         }
     }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         if self.visible_sites.is_empty() {
             html! {
                 <svg

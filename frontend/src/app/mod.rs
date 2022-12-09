@@ -20,7 +20,6 @@ use yew_oauth2::prelude::oauth2::Config;
 use yew_oauth2::prelude::Authenticated;
 use yew_oauth2::prelude::Failure;
 use yew_oauth2::prelude::NotAuthenticated;
-use yew_router::prelude::Switch;
 use yew_router::router::{Render, Router};
 
 use route::AppRoute;
