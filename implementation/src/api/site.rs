@@ -1,7 +1,7 @@
 use async_graphql::Object;
 
 use crate::error::BackendError;
-use crate::topology::model::SiteRef;
+use crate::topology::model::site::SiteRef;
 use crate::topology::query::get_topology;
 
 #[derive(Debug)]
@@ -38,4 +38,8 @@ impl Site {
             .filter(|l| !l.is_empty())
             .collect()
     }
+    /*
+    async fn count_devices(&self) -> u32 {
+        todo!()
+    }*/
 }

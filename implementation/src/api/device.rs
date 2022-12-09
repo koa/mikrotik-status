@@ -6,7 +6,7 @@ use async_graphql::Object;
 use log::warn;
 
 use crate::error::BackendError;
-use crate::topology::model::DeviceRef;
+use crate::topology::model::device::DeviceRef;
 use crate::topology::query::get_topology;
 
 #[derive(Debug)]
