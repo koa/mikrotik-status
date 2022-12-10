@@ -1,7 +1,17 @@
+use std::sync::Arc;
+
+use crate::topology::model::Topology;
+
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Location {
     id: u32,
     name: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct LocationRef {
+    topology: Arc<Topology>,
+    location: Arc<Location>,
 }
 
 impl Location {
@@ -17,24 +27,14 @@ impl Location {
     }
 }
 
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
-pub struct LocationIdx {
-    site_idx: usize,
-    location_idx: usize,
-}
-
-impl LocationIdx {
-    pub fn new(site_idx: usize, location_idx: usize) -> Self {
-        Self {
-            site_idx,
-            location_idx,
-        }
+impl LocationRef {
+    pub fn new(topology: Arc<Topology>, location: Arc<Location>) -> Self {
+        Self { topology, location }
     }
-
-    pub fn site_idx(&self) -> usize {
-        self.site_idx
+    pub fn id(&self) -> u32 {
+        self.location.id
     }
-    pub fn location_idx(&self) -> usize {
-        self.location_idx
+    pub fn name(&self) -> &str {
+        &self.location.name
     }
 }

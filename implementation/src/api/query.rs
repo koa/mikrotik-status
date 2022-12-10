@@ -1,10 +1,11 @@
 use async_graphql::Object;
-use log::info;
 
 use crate::api::device::{get_device, list_devices, Device};
+use crate::api::location::list_locations;
+use crate::api::location::Location;
 use crate::api::settings::SettingsData;
-use crate::api::site::list_sites;
 use crate::api::site::Site;
+use crate::api::site::{get_site, list_sites};
 use crate::error::BackendError;
 
 pub struct Query;
@@ -25,8 +26,14 @@ impl Query {
     }
     /// list all known sites available for query
     async fn sites(&self) -> Result<Vec<Site>, BackendError> {
-        let result = list_sites().await;
-        info!("sites: {result:#?}");
-        result
+        list_sites().await
+    }
+    /// get single site by id
+    async fn site(&self, id: u32) -> Result<Option<Site>, BackendError> {
+        get_site(id).await
+    }
+    /// list all known locations
+    async fn locations(&self) -> Result<Vec<Location>, BackendError> {
+        list_locations().await
     }
 }

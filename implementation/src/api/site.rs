@@ -1,5 +1,6 @@
 use async_graphql::Object;
 
+use crate::api::location::Location;
 use crate::error::BackendError;
 use crate::topology::model::site::SiteRef;
 use crate::topology::query::get_topology;
@@ -38,8 +39,15 @@ impl Site {
             .filter(|l| !l.is_empty())
             .collect()
     }
-    /*
-    async fn count_devices(&self) -> u32 {
-        todo!()
-    }*/
+    async fn locations(&self) -> Vec<Location> {
+        self.0
+            .locations()
+            .iter()
+            .cloned()
+            .map(Location::new)
+            .collect()
+    }
+    async fn count_locations(&self) -> usize {
+        self.0.locations().len()
+    }
 }

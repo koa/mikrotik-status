@@ -3,5 +3,6 @@ query ListSites{
         id
         name
         address
+        countLocations
     }
 }

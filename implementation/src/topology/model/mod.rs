@@ -5,8 +5,9 @@ use thiserror::Error;
 
 use device::{Device, DeviceBuilder, DeviceRef, PortIdx};
 use link::{Link, LinkBuilder};
-use location::LocationIdx;
 use site::{Site, SiteBuilder, SiteRef};
+
+use crate::topology::model::location::{Location, LocationRef};
 
 pub mod device;
 pub mod link;
@@ -31,10 +32,11 @@ pub struct Topology {
     devices: Vec<Arc<Device>>,
     links: Vec<Arc<Link>>,
     sites: Vec<Arc<Site>>,
+    locations: Vec<Arc<Location>>,
     link_index: HashMap<PortIdx, usize>,
     device_index: HashMap<u32, usize>,
     site_index: HashMap<u32, usize>,
-    location_index: HashMap<u32, LocationIdx>,
+    location_index: HashMap<u32, usize>,
 }
 
 impl Topology {
@@ -77,19 +79,33 @@ impl Topology {
     pub fn get_site(self: &Arc<Self>, idx: usize) -> Option<SiteRef> {
         self.sites
             .get(idx)
-            .map(|found| SiteRef::new(self.clone(), found.clone(), idx))
+            .map(|found| SiteRef::new(self.clone(), found.clone()))
     }
     pub fn get_site_by_id(self: &Arc<Self>, key: u32) -> Option<SiteRef> {
         self.get_site(*self.site_index.get(&key)?)
     }
     pub fn list_sites(self: &Arc<Self>) -> Vec<SiteRef> {
-        self.list_sites_map(|s| Some(s))
+        self.list_sites_map(Some)
     }
     pub fn list_sites_map<P: Fn(SiteRef) -> Option<T>, T>(self: &Arc<Self>, filter: P) -> Vec<T> {
         self.sites
             .iter()
-            .enumerate()
-            .map(|(idx, found)| SiteRef::new(self.clone(), found.clone(), idx))
+            .map(|found| SiteRef::new(self.clone(), found.clone()))
+            .flat_map(filter)
+            .collect()
+    }
+    pub fn get_location(self: &Arc<Self>, idx: usize) -> Option<LocationRef> {
+        self.locations
+            .get(idx)
+            .map(|found| LocationRef::new(self.clone(), found.clone()))
+    }
+    pub fn list_locations_map<P: Fn(LocationRef) -> Option<T>, T>(
+        self: &Arc<Self>,
+        filter: P,
+    ) -> Vec<T> {
+        self.locations
+            .iter()
+            .map(|found| LocationRef::new(self.clone(), found.clone()))
             .flat_map(filter)
             .collect()
     }
@@ -100,6 +116,7 @@ pub struct TopologyBuilder {
     devices: Vec<Device>,
     links: Vec<Link>,
     sites: Vec<Site>,
+    locations: Vec<Location>,
 }
 
 impl TopologyBuilder {
@@ -112,6 +129,11 @@ impl TopologyBuilder {
     pub fn append_site(&mut self, id: u32, name: String, address: String) -> SiteBuilder {
         SiteBuilder::new(self, id, name, address)
     }
+    pub fn append_location(&mut self, id: u32, name: String) -> usize {
+        self.locations.push(Location::new(id, name));
+        self.locations.len() - 1
+    }
+
     pub fn build(self) -> Arc<Topology> {
         let mut links = Vec::with_capacity(self.links.len());
         let mut link_index = HashMap::new();
@@ -129,14 +151,17 @@ impl TopologyBuilder {
             device_index.insert(device.id(), devices.len());
             devices.push(Arc::new(device));
         }
+        let mut locations = Vec::with_capacity(self.locations.len());
+        let mut location_index = HashMap::new();
+        for location in self.locations {
+            location_index.insert(location.id(), locations.len());
+            locations.push(Arc::new(location));
+        }
+
         let mut sites = Vec::with_capacity(self.sites.len());
         let mut site_index = HashMap::new();
-        let mut location_index = HashMap::new();
         for site in self.sites {
             let site_idx = sites.len();
-            for (location_idx, location) in site.locations().iter().enumerate() {
-                location_index.insert(location.id(), LocationIdx::new(site_idx, location_idx));
-            }
             site_index.insert(site.id(), site_idx);
             sites.push(Arc::new(site));
         }
@@ -144,6 +169,7 @@ impl TopologyBuilder {
             devices,
             links,
             sites,
+            locations,
             link_index,
             device_index,
             site_index,

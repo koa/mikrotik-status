@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::topology::model::location::Location;
+use crate::topology::model::location::{Location, LocationRef};
 use crate::topology::model::{Topology, TopologyBuilder};
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
@@ -8,7 +8,7 @@ pub struct Site {
     id: u32,
     name: String,
     address: String,
-    locations: Vec<Location>,
+    locations: Vec<usize>,
 }
 
 impl Site {
@@ -21,7 +21,7 @@ impl Site {
     pub fn address(&self) -> &str {
         &self.address
     }
-    pub fn locations(&self) -> &Vec<Location> {
+    pub fn locations(&self) -> &Vec<usize> {
         &self.locations
     }
 }
@@ -31,20 +31,27 @@ pub struct SiteBuilder<'a> {
     id: u32,
     name: String,
     address: String,
-    locations: Vec<Location>,
+    locations: Vec<usize>,
 }
 
 impl<'a> SiteBuilder<'a> {
-    pub fn append_location(&mut self, id: u32, name: String) -> usize {
-        self.locations.push(Location::new(id, name));
-        self.locations.len() - 1
+    pub(crate) fn append_location(&mut self, id: u32, name: String) {
+        self.topo_builder.locations.push(Location::new(id, name));
+        let idx = self.topo_builder.locations.len();
+        self.locations.push(idx);
+    }
+    pub fn append_location_id(&mut self, idx: usize) -> &mut Self {
+        self.locations.push(idx);
+        self
     }
     pub fn build(self) -> usize {
+        let mut locations = self.locations;
+        locations.shrink_to_fit();
         self.topo_builder.sites.push(Site {
             id: self.id,
             name: self.name,
             address: self.address,
-            locations: self.locations,
+            locations,
         });
         self.topo_builder.sites.len() - 1
     }
@@ -68,10 +75,12 @@ impl<'a> SiteBuilder<'a> {
 pub struct SiteRef {
     topology: Arc<Topology>,
     site: Arc<Site>,
-    site_idx: usize,
 }
 
 impl SiteRef {
+    pub fn new(topology: Arc<Topology>, site: Arc<Site>) -> Self {
+        Self { topology, site }
+    }
     pub(crate) fn get_id(&self) -> u32 {
         self.site.id
     }
@@ -81,11 +90,15 @@ impl SiteRef {
     pub fn get_address(&self) -> &str {
         &self.site.address
     }
-    pub fn new(topology: Arc<Topology>, site: Arc<Site>, site_idx: usize) -> Self {
-        Self {
-            topology,
-            site,
-            site_idx,
-        }
+    pub fn locations(&self) -> Vec<LocationRef> {
+        self.site
+            .locations
+            .iter()
+            .filter_map(|location| self.topology.get_location(*location))
+            .collect()
+    }
+    pub fn location(&self, id: usize) -> Option<LocationRef> {
+        let location = self.site.locations.get(id)?;
+        self.topology.get_location(*location)
     }
 }

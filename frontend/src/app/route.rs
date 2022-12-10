@@ -9,13 +9,24 @@ use crate::pages::sites::list::SiteList;
 pub enum AppRoute {
     #[to = "/sites/list"]
     Sites,
+    #[to = "/sites/{id}"]
+    Site { id: u32 },
     #[to = "/devices"]
     Devices,
     #[to = "/"]
     Home,
 }
 
+impl Default for AppRoute {
+    fn default() -> Self {
+        AppRoute::Home
+    }
+}
+
 impl AppRoute {
+    pub fn site(id: u32) -> AppRoute {
+        AppRoute::Site { id }
+    }
     pub fn main_menu() -> Html {
         html_nested! {
             <>
@@ -30,6 +41,7 @@ impl AppRoute {
             AppRoute::Home => html! {<h1>{"Home"}</h1>},
             AppRoute::Devices => html! {<DeviceList/>},
             AppRoute::Sites => html! {<SiteList/>},
+            AppRoute::Site { id } => html! {<p>{id}</p>},
         }
     }
 }
