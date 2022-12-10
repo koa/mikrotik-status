@@ -125,14 +125,13 @@ pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
         let id = site.id.parse()?;
         let name = site.name;
         let address = site.physical_address;
-        let mut site_builder = topo_builder.append_site(id, name, address);
+        let mut site_idx = topo_builder.append_site(id, name, address);
         for location in site.locations {
             let id = location.id.parse()?;
             let name = location.name;
-            site_builder.append_location(id, name);
+            let location_idx = topo_builder.append_location(id, name);
+            topo_builder.set_site_of_location(location_idx, site_idx);
         }
-
-        site_builder.build();
     }
     Ok(topo_builder.build())
 }

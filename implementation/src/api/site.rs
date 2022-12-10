@@ -8,6 +8,12 @@ use crate::topology::query::get_topology;
 #[derive(Debug)]
 pub struct Site(SiteRef);
 
+impl From<SiteRef> for Site {
+    fn from(r: SiteRef) -> Self {
+        Site(r)
+    }
+}
+
 impl Site {
     fn new(s: SiteRef) -> Site {
         Site(s)

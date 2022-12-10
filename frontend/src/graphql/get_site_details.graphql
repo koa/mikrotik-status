@@ -1,0 +1,10 @@
+query GetSiteDetails($id: Int!){
+    site(id: $id){
+        name
+        address
+        locations {
+            id
+            name
+        }
+    }
+}

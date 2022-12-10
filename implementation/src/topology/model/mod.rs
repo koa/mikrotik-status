@@ -1,13 +1,14 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use log::warn;
 use thiserror::Error;
 
 use device::{Device, DeviceBuilder, DeviceRef, PortIdx};
 use link::{Link, LinkBuilder};
 use site::{Site, SiteBuilder, SiteRef};
 
-use crate::topology::model::location::{Location, LocationRef};
+use crate::topology::model::location::{Location, LocationBuilder, LocationRef};
 
 pub mod device;
 pub mod link;
@@ -109,14 +110,17 @@ impl Topology {
             .flat_map(filter)
             .collect()
     }
+    pub fn get_location_by_id(self: &Arc<Self>, key: u32) -> Option<LocationRef> {
+        self.get_location(*self.location_index.get(&key)?)
+    }
 }
 
 #[derive(Default)]
 pub struct TopologyBuilder {
     devices: Vec<Device>,
     links: Vec<Link>,
-    sites: Vec<Site>,
-    locations: Vec<Location>,
+    sites: Vec<SiteBuilder>,
+    locations: Vec<LocationBuilder>,
 }
 
 impl TopologyBuilder {
@@ -126,15 +130,32 @@ impl TopologyBuilder {
     pub fn append_link(&mut self) -> LinkBuilder {
         LinkBuilder::new(self)
     }
-    pub fn append_site(&mut self, id: u32, name: String, address: String) -> SiteBuilder {
-        SiteBuilder::new(self, id, name, address)
+    pub fn append_site(&mut self, id: u32, name: String, address: String) -> usize {
+        self.sites.push(Site::builder(id, name, address));
+        self.sites.len() - 1
     }
     pub fn append_location(&mut self, id: u32, name: String) -> usize {
-        self.locations.push(Location::new(id, name));
+        self.locations.push(Location::builder(id, name));
         self.locations.len() - 1
     }
 
-    pub fn build(self) -> Arc<Topology> {
+    pub fn set_site_of_location(&mut self, location_idx: usize, site_idx: usize) {
+        Self::modify_site_of_location(&mut self.locations, location_idx, site_idx)
+    }
+
+    fn modify_site_of_location(
+        locations: &mut [LocationBuilder],
+        location_idx: usize,
+        site_idx: usize,
+    ) {
+        if let Some(location) = locations.get_mut(location_idx) {
+            location.site(site_idx);
+        } else {
+            warn!("Location {location_idx} not found");
+        }
+    }
+
+    pub fn build(mut self) -> Arc<Topology> {
         let mut links = Vec::with_capacity(self.links.len());
         let mut link_index = HashMap::new();
         for (link_idx, link) in self.links.into_iter().enumerate() {
@@ -153,17 +174,35 @@ impl TopologyBuilder {
         }
         let mut locations = Vec::with_capacity(self.locations.len());
         let mut location_index = HashMap::new();
+        let mut locations_of_site: HashMap<_, HashSet<usize>> = HashMap::new();
+        for (site_idx, site_builder) in self.sites.iter().enumerate() {
+            for (location_id, location_name) in site_builder.locations().iter().cloned() {
+                let location_idx = self.locations.len();
+                self.locations
+                    .push(Location::builder(location_id, location_name));
+                Self::modify_site_of_location(&mut self.locations, location_idx, site_idx);
+            }
+        }
         for location in self.locations {
-            location_index.insert(location.id(), locations.len());
+            let location_idx = locations.len();
+            let location = location.build();
+            if let Some(site_idx) = location.site() {
+                locations_of_site
+                    .entry(site_idx)
+                    .or_default()
+                    .insert(location_idx);
+            }
+            location_index.insert(location.id(), location_idx);
             locations.push(Arc::new(location));
         }
 
         let mut sites = Vec::with_capacity(self.sites.len());
         let mut site_index = HashMap::new();
-        for site in self.sites {
-            let site_idx = sites.len();
-            site_index.insert(site.id(), site_idx);
-            sites.push(Arc::new(site));
+        for (site_idx, site) in self.sites.into_iter().enumerate() {
+            let locations = locations_of_site.remove(&site_idx).unwrap_or_default();
+            let (id, name, address) = site.destruct();
+            sites.push(Arc::new(Site::new(id, name, address, locations)));
+            site_index.insert(id, site_idx);
         }
         Arc::new(Topology {
             devices,

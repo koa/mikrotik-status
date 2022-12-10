@@ -6,6 +6,13 @@ use crate::topology::model::Topology;
 pub struct Location {
     id: u32,
     name: String,
+    site: Option<usize>,
+}
+
+pub struct LocationBuilder {
+    id: u32,
+    name: String,
+    site: Option<usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -14,9 +21,27 @@ pub struct LocationRef {
     location: Arc<Location>,
 }
 
+impl LocationBuilder {
+    pub fn site(&mut self, site_idx: usize) -> &mut Self {
+        self.site = Some(site_idx);
+        self
+    }
+    pub fn build(self) -> Location {
+        Location {
+            id: self.id,
+            name: self.name,
+            site: self.site,
+        }
+    }
+}
+
 impl Location {
-    pub fn new(id: u32, name: String) -> Self {
-        Self { id, name }
+    pub fn builder(id: u32, name: String) -> LocationBuilder {
+        LocationBuilder {
+            id,
+            name,
+            site: None,
+        }
     }
 
     pub fn id(&self) -> u32 {
@@ -24,6 +49,10 @@ impl Location {
     }
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn site(&self) -> Option<usize> {
+        self.site
     }
 }
 
@@ -36,5 +65,8 @@ impl LocationRef {
     }
     pub fn name(&self) -> &str {
         &self.location.name
+    }
+    pub fn site_id(&self) -> Option<usize> {
+        self.location.site
     }
 }

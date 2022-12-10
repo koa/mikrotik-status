@@ -3,7 +3,7 @@ use yew::{html, html_nested, Html};
 use yew_router::Switch;
 
 use crate::pages::devices::DeviceList;
-use crate::pages::sites::list::SiteList;
+use crate::pages::sites::site_list::SiteList;
 
 #[derive(Switch, Debug, Clone, PartialEq, Eq)]
 pub enum AppRoute {
@@ -41,7 +41,8 @@ impl AppRoute {
             AppRoute::Home => html! {<h1>{"Home"}</h1>},
             AppRoute::Devices => html! {<DeviceList/>},
             AppRoute::Sites => html! {<SiteList/>},
-            AppRoute::Site { id } => html! {<p>{id}</p>},
+            AppRoute::Site { id } => html! {<SiteDetails id={*id}/>},
         }
     }
 }
+use crate::pages::sites::site_details::SiteDetails;

@@ -1,7 +1,8 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
-use crate::topology::model::location::{Location, LocationRef};
-use crate::topology::model::{Topology, TopologyBuilder};
+use crate::topology::model::location::LocationRef;
+use crate::topology::model::Topology;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Site {
@@ -12,6 +13,22 @@ pub struct Site {
 }
 
 impl Site {
+    pub(crate) fn new(id: u32, name: String, address: String, locations: HashSet<usize>) -> Site {
+        Site {
+            id,
+            name,
+            address,
+            locations: locations.into_iter().collect(),
+        }
+    }
+    pub fn builder(id: u32, name: String, address: String) -> SiteBuilder {
+        SiteBuilder {
+            id,
+            name,
+            address,
+            locations: vec![],
+        }
+    }
     pub fn id(&self) -> u32 {
         self.id
     }
@@ -26,48 +43,34 @@ impl Site {
     }
 }
 
-pub struct SiteBuilder<'a> {
-    topo_builder: &'a mut TopologyBuilder,
+pub struct SiteBuilder {
     id: u32,
     name: String,
     address: String,
-    locations: Vec<usize>,
+    locations: Vec<(u32, String)>,
 }
 
-impl<'a> SiteBuilder<'a> {
-    pub(crate) fn append_location(&mut self, id: u32, name: String) {
-        self.topo_builder.locations.push(Location::new(id, name));
-        let idx = self.topo_builder.locations.len();
-        self.locations.push(idx);
-    }
-    pub fn append_location_id(&mut self, idx: usize) -> &mut Self {
-        self.locations.push(idx);
-        self
-    }
-    pub fn build(self) -> usize {
-        let mut locations = self.locations;
-        locations.shrink_to_fit();
-        self.topo_builder.sites.push(Site {
-            id: self.id,
-            name: self.name,
-            address: self.address,
-            locations,
-        });
-        self.topo_builder.sites.len() - 1
-    }
-    pub fn new(
-        topo_builder: &'a mut TopologyBuilder,
-        id: u32,
-        name: String,
-        address: String,
-    ) -> Self {
+impl SiteBuilder {
+    pub fn new(id: u32, name: String, address: String) -> Self {
         Self {
-            topo_builder,
             id,
             name,
             address,
             locations: vec![],
         }
+    }
+    pub(crate) fn append_location(&mut self, id: u32, name: String) {
+        self.locations.push((id, name));
+    }
+
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+    pub fn destruct(self) -> (u32, String, String) {
+        (self.id, self.name, self.address)
+    }
+    pub fn locations(&self) -> &Vec<(u32, String)> {
+        &self.locations
     }
 }
 

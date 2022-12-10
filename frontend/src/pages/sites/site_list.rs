@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use log::error;
+use patternfly_yew::Spinner;
 use wasm_bindgen_futures::spawn_local;
 use yew::classes;
 use yew::{html, Component, Context, Html};
@@ -39,20 +40,16 @@ impl Component for SiteList {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         if self.visible_sites.is_empty() {
             html! {
-                <svg
-                  class="pf-c-spinner"
-                  role="progressbar"
-                  viewBox="0 0 100 100"
-                  aria-label="Loading List of devices...">
-                  <circle class="pf-c-spinner__path" cx="50" cy="50" r="45" fill="none" />
-                </svg>
+                <Spinner/>
             }
         } else {
             let device_cards = self
                 .visible_sites
                 .iter()
-                .map(|data| {
-                    html! {<SiteComponent {data}/>}
+                .map(|data| data.id)
+                .flat_map(|id| id.try_into())
+                .map(|id: u32| {
+                    html! {<SiteComponent {id}/>}
                 })
                 .collect::<Html>();
             html! {<div class={classes!("card-grid")}>{device_cards}</div>}

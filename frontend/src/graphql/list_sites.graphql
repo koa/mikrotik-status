@@ -1,8 +1,5 @@
 query ListSites{
     sites {
         id
-        name
-        address
-        countLocations
     }
 }
