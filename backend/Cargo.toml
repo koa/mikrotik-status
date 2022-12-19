@@ -4,20 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-actix-web = { version = "4.2.1", features = ["rustls"] }
-actix-web-static-files = "4.0"
-static-files = "0.2.1"
-implementation = { path = "../implementation" }
 async-graphql = "4.0.16"
-async-graphql-actix-web = "4.0.16"
-env_logger = "0.9.3"
-log = "0.4"
-prometheus = "0.13.3"
-actix-web-prometheus = { version = "0.1.2", features = ["process"] }
-thiserror = "1.0.37"
-actix-4-jwt-auth = "0.6.0"
-biscuit = "0.6.0-beta1"
+graphql_client = "0.11.0"
+lazy_static = "1.4.0"
 serde = "1.0.147"
-
-[build-dependencies]
-static-files = "0.2.1"
+log = "0.4"
+config = "0.13.2"
+indexmap = "=1.6.2"
+reqwest = { version = "0.11.13", features = ["json", "rustls-tls"] }
+thiserror = "1.0.37"
+#surge-ping = "0.7.3"
+surge-ping = { git = "https://github.com/mokeyish/surge-ping.git", branch = "unpriviledged_ping" }
+ipnet = "2.5.1"
+cached = "0.40.0"

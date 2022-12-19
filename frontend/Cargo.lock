@@ -188,6 +188,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
+name = "backend"
+version = "0.1.0"
+dependencies = [
+ "async-graphql",
+ "cached",
+ "config",
+ "graphql_client",
+ "indexmap",
+ "ipnet",
+ "lazy_static",
+ "log",
+ "reqwest",
+ "serde",
+ "surge-ping",
+ "thiserror",
+]
+
+[[package]]
 name = "base64"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -609,9 +627,9 @@ name = "frontend"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "backend",
  "console_error_panic_hook",
  "graphql_client",
- "implementation",
  "itertools",
  "js-sys",
  "lazy_static",
@@ -1173,24 +1191,6 @@ checksum = "e14ddfc70884202db2244c223200c204c2bda1bc6e0998d11b5e024d657209e6"
 dependencies = [
  "unicode-bidi",
  "unicode-normalization",
-]
-
-[[package]]
-name = "implementation"
-version = "0.1.0"
-dependencies = [
- "async-graphql",
- "cached",
- "config",
- "graphql_client",
- "indexmap",
- "ipnet",
- "lazy_static",
- "log",
- "reqwest",
- "serde",
- "surge-ping",
- "thiserror",
 ]
 
 [[package]]

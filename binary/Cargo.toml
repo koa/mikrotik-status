@@ -1,0 +1,23 @@
+[package]
+name = "mikrotik-status"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = { version = "4.2.1", features = ["rustls"] }
+actix-web-static-files = "4.0"
+static-files = "0.2.1"
+backend = { path = "../backend" }
+async-graphql = "4.0.16"
+async-graphql-actix-web = "4.0.16"
+env_logger = "0.9.3"
+log = "0.4"
+prometheus = "0.13.3"
+actix-web-prometheus = { version = "0.1.2", features = ["process"] }
+thiserror = "1.0.37"
+actix-4-jwt-auth = "0.6.0"
+biscuit = "0.6.0-beta1"
+serde = "1.0.147"
+
+[build-dependencies]
+static-files = "0.2.1"

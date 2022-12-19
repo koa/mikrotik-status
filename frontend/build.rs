@@ -1,8 +1,7 @@
 use std::fs;
 
 use anyhow::Result;
-
-use implementation::api::create_schema;
+use backend::api::create_schema;
 
 fn main() -> Result<()> {
     write_graphql_schema()?;

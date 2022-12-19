@@ -1,10 +1,10 @@
 /frontend/target
+/binary/target
 /backend/target
-/implementation/target
 /.idea
 /*/.idea
 /frontend/graphql/schema.graphql
 /frontend/node/node_modules/
 /frontend/dist/
-/backend/config.yaml
+/binary/config.yaml
 .graphqlconfig

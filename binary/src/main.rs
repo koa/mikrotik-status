@@ -8,15 +8,14 @@ use actix_web_prometheus::PrometheusMetricsBuilder;
 use actix_web_static_files::ResourceFiles;
 use async_graphql::futures_util::future::join_all;
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
+use backend::api::{create_schema, GraphqlSchema};
+use backend::config::CONFIG;
+use backend::context::UserInfo;
 use biscuit::ValidationOptions;
 use env_logger::Env;
 use prometheus::{histogram_opts, HistogramVec};
 use static_files::Resource;
 use thiserror::Error;
-
-use implementation::api::{create_schema, GraphqlSchema};
-use implementation::config::CONFIG;
-use implementation::context::UserInfo;
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 

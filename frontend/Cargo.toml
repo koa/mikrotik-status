@@ -30,5 +30,5 @@ itertools = { version = "0.10.5", features = ["use_alloc"] }
 
 
 [build-dependencies]
-implementation = { path = "../implementation" }
+backend = { path = "../backend" }
 anyhow = "1.0.66"
