@@ -9,10 +9,10 @@ edition = "2021"
 wasm-bindgen = "0.2.74"
 wasm-bindgen-futures = "0.4"
 serde-wasm-bindgen = "0.4"
-yew = "0.19.3"
+yew = { version = "0.20.0", features = ["csr"] }
 yewtil = { version = "0.4", features = ["future"] }
-yew-router = { version = "0.16.1", package = "yew-router-nested" }
-patternfly-yew = "0.2.3"
+yew-nested-router = { version = "0.1.0" }
+patternfly-yew = "0.3.0"
 graphql_client = { version = "0.11.0", features = ["reqwest"] }
 reqwest = "0.11.13"
 serde = { version = "1.0.130", features = ["derive"] }
@@ -21,7 +21,7 @@ log = "0.4"
 wasm-logger = "0.2.0"
 web-sys = "0.3.51"
 thiserror = "1.0.37"
-yew-oauth2 = { version = "0.4.0", features = ["openidconnect", "yew-router-nested"] }
+yew-oauth2 = { version = "0.5.0" }
 openidconnect = { version = "2.2", default-features = false, features = ["reqwest", "rustls-tls"] }
 js-sys = "0.3.6"
 lazy_static = "1.4.0"

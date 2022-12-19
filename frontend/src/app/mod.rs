@@ -1,29 +1,26 @@
 use lazy_static::lazy_static;
 use log::error;
 use patternfly_yew::BackdropViewer;
-use patternfly_yew::Nav;
-use patternfly_yew::NavItem;
 use patternfly_yew::Page;
 use patternfly_yew::PageSidebar;
 use patternfly_yew::ToastViewer;
 use reqwest::Url;
 use wasm_bindgen_futures::spawn_local;
-use yew::MouseEvent;
-use yew::{html, html_nested, Html};
-use yew::{Callback, Context};
-use yew_oauth2::agent::OAuth2Operations;
-use yew_oauth2::agent::{LogoutOptions, OAuth2Dispatcher};
-use yew_oauth2::oauth2::Client;
-use yew_oauth2::oauth2::LocationRedirect;
+use yew::html_nested;
+use yew::{function_component, Context, Properties};
+use yew::{html, Html};
+use yew_nested_router::Router;
+use yew_nested_router::Switch;
 use yew_oauth2::oauth2::OAuth2;
 use yew_oauth2::prelude::oauth2::Config;
 use yew_oauth2::prelude::Authenticated;
 use yew_oauth2::prelude::Failure;
 use yew_oauth2::prelude::NotAuthenticated;
-use yew_router::router::{Render, Router};
 
 use route::AppRoute;
 
+use crate::app::route::AuthenticatedSidebar;
+use crate::app::route::NotAuthenticatedSidebar;
 use crate::graphql::query;
 use crate::graphql::settings::settings::{ResponseData, SettingsSettings};
 use crate::graphql::settings::{settings, Settings};
@@ -37,54 +34,9 @@ lazy_static! {
 pub struct App {
     oauth2_config: Option<Config>,
 }
-
-impl App {
-    fn switch_main() -> Render<AppRoute, ()> {
-        Router::render(|switch: AppRoute| Self::page(switch.main_content(), true))
-    }
-    fn switch_unauthenticated() -> Render<AppRoute, ()> {
-        Router::render(|switch| match switch {
-            AppRoute::Home => Self::page(html! {  <p> { "You need to log in" } </p>}, false),
-            _ => html!(<LocationRedirect logout_href="/" />),
-        })
-    }
-    fn page(html: Html, logged_in: bool) -> Html {
-        let logout: Callback<MouseEvent> = Callback::from(|_: MouseEvent| {
-            OAuth2Dispatcher::<Client>::new().logout_opts(LogoutOptions {
-                target: Some(HOME_URL.clone()),
-            });
-        });
-        let login: Callback<MouseEvent> = Callback::from(|_: MouseEvent| {
-            OAuth2Dispatcher::<Client>::new().start_login();
-        });
-
-        let sidebar = if logged_in {
-            html_nested! {
-            <PageSidebar>
-                <Nav>
-                    {AppRoute::main_menu()}
-                    <span onclick={logout}><NavItem>{"Abmelden"}</NavItem></span>
-                </Nav>
-            </PageSidebar>
-            }
-        } else {
-            html_nested! {
-            <PageSidebar>
-                <Nav>
-                    <span onclick={login}><NavItem>{"Login"}</NavItem></span>
-                </Nav>
-            </PageSidebar>
-            }
-        };
-        html! {
-            <Page
-                //logo={logo}
-                sidebar={sidebar}
-                >
-                { html }
-            </Page>
-        }
-    }
+#[derive(Properties, PartialEq)]
+pub struct Props {
+    pub config: Config,
 }
 
 pub enum AppMessage {
@@ -108,33 +60,14 @@ impl yew::Component for App {
         }
     }
 
-    fn view(&self, _: &Context<Self>) -> Html {
-        if let Some(oauth2_config) = self.oauth2_config.as_ref() {
+    fn view(&self, _ctx: &Context<Self>) -> Html {
+        if let Some(config) = self.oauth2_config.clone() {
             html! {
-            <OAuth2 config={oauth2_config.clone()}>
-                <Failure>{"Fail"}</Failure>
-                <Authenticated>
-                    <BackdropViewer/>
-                    <ToastViewer/>
-
-                    <Router<AppRoute, ()>
-                        redirect = {Router::redirect(|_|AppRoute::Home)}
-                        render = {Self::switch_main()}
-                    />
-                </Authenticated>
-                <NotAuthenticated>
-                    <Router<AppRoute, ()>
-                        redirect = {Router::redirect(|_|AppRoute::Home)}
-                        render = {Self::switch_unauthenticated()}
-                    />
-
-                </NotAuthenticated>
-
-            </OAuth2>
+                <MainOAuth2 {config}/>
             }
         } else {
             html! {
-                <h1>{"Connecting to server"}</h1>
+                <h1>{"Fetching"}</h1>
             }
         }
     }
@@ -163,4 +96,44 @@ impl yew::Component for App {
             });
         }
     }
+}
+#[function_component(MainOAuth2)]
+fn main_oauth2(props: &Props) -> Html {
+    let oauth2_config = &props.config;
+    html! {
+        <OAuth2 config={oauth2_config.clone()}>
+            <Router<AppRoute> default={AppRoute::Home}>
+                <MainPage/>
+            </Router<AppRoute>>
+        </OAuth2>
+    }
+}
+
+#[function_component(MainPage)]
+fn main_page() -> Html {
+    html! {
+        <BackdropViewer>
+            <ToastViewer>
+                <Failure>{"Fail"}</Failure>
+                <Authenticated>
+                    <Page sidebar={html_nested! {<PageSidebar><AuthenticatedSidebar/></PageSidebar>}}>
+                      //logo={logo}
+                        <Switch<AppRoute>
+                            render = {|r: AppRoute| r.main_content()}
+                        />
+                    </Page>
+                </Authenticated>
+                <NotAuthenticated>
+                    <Page sidebar={html_nested! {<PageSidebar><NotAuthenticatedSidebar/></PageSidebar>}}>
+                        <Switch<AppRoute>
+                            render = {|r: AppRoute| r.unauthenticated_content()}
+                        />
+                    </Page>
+                </NotAuthenticated>
+            </ToastViewer>
+        </BackdropViewer>
+    }
+}
+fn switch_main(switch: AppRoute) -> Html {
+    switch.main_content()
 }

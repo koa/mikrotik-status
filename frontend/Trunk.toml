@@ -1,6 +1,3 @@
-[watch]
-watch = ["src"]
-
 [serve]
 port = 8081
 [[proxy]]
@@ -9,4 +6,12 @@ backend = "http://localhost:8080/graphql"
 [[hooks]]
 stage = "pre_build"
 command = "sh"
+command_arguments = ["-c", "clear"]
+
+[[hooks]]
+stage = "pre_build"
+command = "sh"
 command_arguments = ["-c", "cd node && npm install"]
+
+[watch]
+watch = ["src", "Cargo.toml"]

@@ -2,6 +2,7 @@
 /backend/target
 /implementation/target
 /.idea
+/*/.idea
 /frontend/graphql/schema.graphql
 /frontend/node/node_modules/
 /frontend/dist/

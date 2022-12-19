@@ -6,9 +6,7 @@ use patternfly_yew::Spinner;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::MouseEvent;
 use yew::{html, Callback, Component, Context, Html, Properties};
-use yew_router::agent::RouteRequest;
-use yew_router::prelude::RouteAgentDispatcher;
-use yew_router::RouterState;
+use yew_nested_router::prelude::RouterContext;
 
 use crate::app::route::AppRoute;
 use crate::components::site::DataState::Loading;
@@ -16,8 +14,7 @@ use crate::graphql::query;
 use crate::graphql::sites::get_site_details::GetSiteDetailsSite;
 use crate::graphql::sites::{get_site_details, GetSiteDetails};
 
-pub struct SiteComponent<STATE: RouterState = ()> {
-    router: RouteAgentDispatcher<STATE>,
+pub struct SiteComponent {
     id: u32,
     data: DataState,
 }
@@ -43,17 +40,21 @@ impl Component for SiteComponent {
 
     fn create(ctx: &Context<Self>) -> Self {
         Self {
-            router: RouteAgentDispatcher::new(),
             id: ctx.props().id,
             data: Loading,
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let navigator = ctx
+            .link()
+            .context::<RouterContext<AppRoute>>(Default::default())
+            .expect("Cannot be used outside of a router")
+            .0;
+
         match msg {
             SiteMsg::CardClicked => {
-                self.router
-                    .send(RouteRequest::ChangeRoute(AppRoute::site(self.id).into()));
+                navigator.push(AppRoute::site(self.id));
                 false
             }
 

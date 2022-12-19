@@ -1,6 +1,5 @@
-use log::Level;
 use wasm_bindgen::prelude::wasm_bindgen;
-use yew::start_app;
+use wasm_bindgen::JsValue;
 
 use crate::app::App;
 
@@ -14,8 +13,12 @@ mod pages;
 pub fn init_panic_hook() {
     console_error_panic_hook::set_once();
 }
-
-fn main() {
-    wasm_logger::init(wasm_logger::Config::new(Level::Info));
-    start_app::<App>();
+#[cfg(not(debug_assertions))]
+const LOG_LEVEL: log::Level = log::Level::Info;
+#[cfg(debug_assertions)]
+const LOG_LEVEL: log::Level = log::Level::Trace;
+pub fn main() -> Result<(), JsValue> {
+    wasm_logger::init(wasm_logger::Config::new(LOG_LEVEL));
+    yew::Renderer::<App>::new().render();
+    Ok(())
 }
