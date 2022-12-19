@@ -1,7 +1,9 @@
-/target
+/frontend/target
+/backend/target
+/implementation/target
 /.idea
 /frontend/graphql/schema.graphql
 /frontend/node/node_modules/
 /frontend/dist/
+/backend/config.yaml
 .graphqlconfig
-/config.yaml

@@ -3,7 +3,6 @@ name = "implementation"
 version = "0.1.0"
 edition = "2021"
 
-
 [dependencies]
 async-graphql = "4.0.16"
 graphql_client = "0.11.0"

@@ -3,19 +3,14 @@ RUN apt-get update
 RUN apt-get -y install npm
 RUN rustup target add wasm32-unknown-unknown
 RUN cargo install trunk
+COPY . /app
 WORKDIR /app
-COPY backend /app/backend
-COPY frontend /app/frontend
-COPY implementation /app/implementation
-COPY Cargo.* /app
-RUN cargo build -p implementation --release
-WORKDIR /app/frontend
-RUN trunk build
-WORKDIR /app
-RUN cargo build -p backend --release
+RUN cd /app/implementation && cargo build --release
+RUN cd /app/frontend && trunk build
+RUN cd /app/backend && cargo build --release
 
 FROM gcr.io/distroless/cc
-COPY --from=build-env /app/target/release/backend /
+COPY --from=build-env /app/backend/target/release/backend /
 
 # have to use exec form as we have no shell to execute to execute our binary
 CMD ["/backend"]
