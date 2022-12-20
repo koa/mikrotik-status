@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-graphql = "4.0.16"
+async-graphql = "5.0.4"
 graphql_client = "0.11.0"
 lazy_static = "1.4.0"
 serde = "1.0.147"
@@ -15,4 +15,4 @@ reqwest = { version = "0.11.13", features = ["json", "rustls-tls"] }
 thiserror = "1.0.38"
 surge-ping = { git = "https://github.com/mokeyish/surge-ping.git", branch = "unpriviledged_ping" }
 ipnet = "2.5.1"
-cached = "0.40.0"
+cached = "0.41.0"
