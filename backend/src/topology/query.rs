@@ -11,7 +11,7 @@ use log::debug;
 use reqwest::header::AUTHORIZATION;
 use thiserror::Error;
 
-use crate::config::CONFIG;
+use crate::config::config;
 use crate::error::{BackendError, GraphqlError};
 use crate::topology::graphql_operations::fetch_topology::IpamIPAddressRoleChoices;
 use crate::topology::graphql_operations::FetchTopology;
@@ -23,7 +23,7 @@ enum PortType {
     Rear,
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Clone)]
 pub enum NetboxError {
     #[error("Unknown Port type: {0}")]
     UnknownPortType(String),
@@ -147,10 +147,11 @@ where
     let name = request_body.operation_name;
     debug!("Graphql Request {name}: {request_body:?}");
     let client = reqwest::Client::new();
+    let config = config()?;
     let response: Response<Q::ResponseData> = client
-        .post(&CONFIG.netbox.endpoint)
+        .post(&config.netbox.endpoint)
         .json(&request_body)
-        .header(AUTHORIZATION, format!("Token {}", &CONFIG.netbox.token))
+        .header(AUTHORIZATION, format!("Token {}", &config.netbox.token))
         .send()
         .await?
         .json()
@@ -162,8 +163,8 @@ where
         let error = GraphqlError::new(response.errors);
         debug!("Graphql Error {name}: {error:?}");
         Err(BackendError::Graphql {
-            error,
-            backtrace: Box::new(Backtrace::force_capture()),
+            error: Arc::new(error),
+            backtrace: Arc::new(Backtrace::force_capture()),
         })
     }
 }

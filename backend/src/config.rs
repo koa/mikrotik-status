@@ -3,7 +3,11 @@ use std::path::Path;
 
 use config::{Config, Environment, File, FileFormat};
 use lazy_static::lazy_static;
+use log::{error, info};
 use serde::Deserialize;
+
+use crate::error;
+use crate::error::BackendError;
 
 #[derive(Debug, Deserialize)]
 pub struct Settings {
@@ -58,20 +62,32 @@ impl Server {
     }
 }
 
-impl Default for Settings {
-    fn default() -> Self {
-        let filename = "config.yaml";
-        let mut config_builder = Config::builder();
-        if Path::new(filename).exists() {
-            config_builder = config_builder.add_source(File::new(filename, FileFormat::Yaml));
+fn load_config() -> error::Result<Settings> {
+    let filename = "config.yaml";
+    let mut config_builder = Config::builder();
+    if Path::new(filename).exists() {
+        config_builder = config_builder.add_source(File::new(filename, FileFormat::Yaml));
+    }
+    let settings = config_builder
+        .add_source(Environment::default().separator("_"))
+        .build()
+        .map_err(|e| {
+            error!("Build error: {e}");
+            e
+        })?;
+    let result = settings.try_deserialize();
+    info!("done");
+    match result {
+        Ok(c) => Ok(c),
+        Err(e) => {
+            error!("parse error: {e:#?}");
+            Err(e.into())
         }
-        let settings = config_builder
-            .add_source(Environment::default().separator("_"))
-            .build()
-            .expect("Cannot load config");
-        settings.try_deserialize().expect("Cannot parse config")
     }
 }
 lazy_static! {
-    pub static ref CONFIG: Settings = Default::default();
+    pub static ref CONFIG: Result<Settings, BackendError> = load_config();
+}
+pub fn config() -> Result<&'static Settings, &'static BackendError> {
+    return CONFIG.as_ref();
 }

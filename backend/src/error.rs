@@ -2,10 +2,14 @@ use std::backtrace::Backtrace;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::num::ParseIntError;
+use std::sync::Arc;
 
+use config::ConfigError;
 use thiserror::Error;
 
 use crate::topology::query::NetboxError;
+
+pub type Result<T> = std::result::Result<T, BackendError>;
 
 #[derive(Debug)]
 pub struct GraphqlError(Vec<graphql_client::Error>);
@@ -24,22 +28,22 @@ impl Display for GraphqlError {
 
 impl Error for GraphqlError {}
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum BackendError {
     #[error("Error calling api: {error}")]
     Reqwest {
-        error: reqwest::Error,
-        backtrace: Box<Backtrace>,
+        error: Arc<reqwest::Error>,
+        backtrace: Arc<Backtrace>,
     },
     #[error("Error from remote server: {error}")]
     Graphql {
-        error: GraphqlError,
-        backtrace: Box<Backtrace>,
+        error: Arc<GraphqlError>,
+        backtrace: Arc<Backtrace>,
     },
     #[error("Error Parsing integer: {error}")]
     ParseInt {
         error: ParseIntError,
-        backtrace: Box<Backtrace>,
+        backtrace: Arc<Backtrace>,
     },
     #[error("Multiple Errors")]
     Umbrella(Vec<BackendError>),
@@ -48,15 +52,35 @@ pub enum BackendError {
     #[error("Error from Netbox: {error}")]
     NetboxError {
         error: NetboxError,
-        backtrace: Box<Backtrace>,
+        backtrace: Arc<Backtrace>,
     },
+    #[error("Error loading config: {error}\n{backtrace}")]
+    ConfigError {
+        error: Arc<ConfigError>,
+        backtrace: Arc<Backtrace>,
+    },
+}
+
+impl From<&BackendError> for BackendError {
+    fn from(value: &BackendError) -> Self {
+        value.clone()
+    }
+}
+
+impl From<ConfigError> for BackendError {
+    fn from(error: ConfigError) -> Self {
+        BackendError::ConfigError {
+            error: Arc::new(error),
+            backtrace: Arc::new(Backtrace::force_capture()),
+        }
+    }
 }
 
 impl From<NetboxError> for BackendError {
     fn from(error: NetboxError) -> Self {
         BackendError::NetboxError {
             error,
-            backtrace: Box::new(Backtrace::force_capture()),
+            backtrace: Arc::new(Backtrace::force_capture()),
         }
     }
 }
@@ -65,7 +89,7 @@ impl From<ParseIntError> for BackendError {
     fn from(error: ParseIntError) -> Self {
         BackendError::ParseInt {
             error,
-            backtrace: Box::new(Backtrace::force_capture()),
+            backtrace: Arc::new(Backtrace::force_capture()),
         }
     }
 }
@@ -73,8 +97,8 @@ impl From<ParseIntError> for BackendError {
 impl From<reqwest::Error> for BackendError {
     fn from(error: reqwest::Error) -> Self {
         BackendError::Reqwest {
-            error,
-            backtrace: Box::new(Backtrace::force_capture()),
+            error: Arc::new(error),
+            backtrace: Arc::new(Backtrace::force_capture()),
         }
     }
 }

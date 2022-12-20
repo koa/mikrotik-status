@@ -6,6 +6,7 @@ use crate::api::location::Location;
 use crate::api::settings::SettingsData;
 use crate::api::site::Site;
 use crate::api::site::{get_site, list_sites};
+use crate::error;
 use crate::error::BackendError;
 
 pub struct Query;
@@ -13,8 +14,8 @@ pub struct Query;
 #[Object]
 impl Query {
     /// gives the coordinates for authentication
-    async fn settings(&self) -> SettingsData {
-        SettingsData::default()
+    async fn settings(&self) -> error::Result<SettingsData> {
+        SettingsData::create_from_config()
     }
     /// list all known devices available for query
     async fn devices(&self) -> Result<Vec<Device>, BackendError> {

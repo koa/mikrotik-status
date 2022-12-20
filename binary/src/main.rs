@@ -9,10 +9,12 @@ use actix_web_static_files::ResourceFiles;
 use async_graphql::futures_util::future::join_all;
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
 use backend::api::{create_schema, GraphqlSchema};
-use backend::config::CONFIG;
+use backend::config::config;
 use backend::context::UserInfo;
+use backend::error;
 use biscuit::ValidationOptions;
 use env_logger::Env;
+use log::error;
 use prometheus::{histogram_opts, HistogramVec};
 use static_files::Resource;
 use thiserror::Error;
@@ -58,20 +60,30 @@ struct ApplicationContext {
 }
 
 #[derive(Error, Debug)]
-enum BackendError {
+enum BinaryError {
     #[error("An IO Error happened")]
     IO(#[from] std::io::Error),
     #[error("An Error from prometheus")]
     Prometheus(#[from] prometheus::Error),
+    #[error("An Error from Backend: {0}")]
+    Backend(#[from] error::BackendError),
 }
 
 #[actix_web::main]
-async fn main() -> Result<(), BackendError> {
+async fn main() {
     env_logger::init_from_env(Env::default().filter_or("LOG_LEVEL", "info"));
+    let result: Result<(), BinaryError> = run_server().await;
+    if let Err(error) = result {
+        error!("There was a error: {error}");
+    }
+}
 
-    let bind_addr = CONFIG.server.get_bind_address();
-    let api_port = CONFIG.server.get_port();
-    let mgmt_port = CONFIG.server.get_mgmt_port();
+async fn run_server() -> Result<(), BinaryError> {
+    let config = config().map_err(|e| e.clone())?;
+
+    let bind_addr = config.server.get_bind_address();
+    let api_port = config.server.get_port();
+    let mgmt_port = config.server.get_mgmt_port();
 
     let mut labels = HashMap::new();
     labels.insert("server".to_string(), "api".to_string());
@@ -92,7 +104,7 @@ async fn main() -> Result<(), BackendError> {
 
     let validation_options = ValidationOptions::default();
 
-    let issuer = CONFIG.auth.issuer.to_string();
+    let issuer = config.auth.issuer.to_string();
     let created_validator = OIDCValidator::new_from_issuer(issuer.clone(), validation_options)
         .await
         .unwrap();

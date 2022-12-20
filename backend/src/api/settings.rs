@@ -1,6 +1,7 @@
 use async_graphql::SimpleObject;
 
-use crate::config::CONFIG;
+use crate::config::config;
+use crate::error;
 
 #[derive(SimpleObject)]
 pub struct SettingsData {
@@ -9,12 +10,13 @@ pub struct SettingsData {
     auth_url: String,
 }
 
-impl Default for SettingsData {
-    fn default() -> Self {
-        SettingsData {
-            client_id: &CONFIG.auth.client_id,
-            auth_url: CONFIG.auth.get_auth_url(),
-            token_url: CONFIG.auth.get_token_url(),
-        }
+impl SettingsData {
+    pub fn create_from_config() -> error::Result<Self> {
+        let config = config()?;
+        Ok(SettingsData {
+            client_id: &config.auth.client_id,
+            auth_url: config.auth.get_auth_url(),
+            token_url: config.auth.get_token_url(),
+        })
     }
 }
