@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::str::FromStr;
@@ -160,6 +161,9 @@ where
     } else {
         let error = GraphqlError::new(response.errors);
         debug!("Graphql Error {name}: {error:?}");
-        Err(BackendError::Graphql(error))
+        Err(BackendError::Graphql {
+            error,
+            backtrace: Box::new(Backtrace::force_capture()),
+        })
     }
 }

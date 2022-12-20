@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::num::ParseIntError;
@@ -25,16 +26,55 @@ impl Error for GraphqlError {}
 
 #[derive(Error, Debug)]
 pub enum BackendError {
-    #[error("Error calling api: {0}")]
-    Reqwest(#[from] reqwest::Error),
-    #[error("Error from remote server: {0}")]
-    Graphql(GraphqlError),
-    #[error("Error Parsing integer: {0}")]
-    ParseInt(#[from] ParseIntError),
+    #[error("Error calling api: {error}")]
+    Reqwest {
+        error: reqwest::Error,
+        backtrace: Box<Backtrace>,
+    },
+    #[error("Error from remote server: {error}")]
+    Graphql {
+        error: GraphqlError,
+        backtrace: Box<Backtrace>,
+    },
+    #[error("Error Parsing integer: {error}")]
+    ParseInt {
+        error: ParseIntError,
+        backtrace: Box<Backtrace>,
+    },
     #[error("Multiple Errors")]
     Umbrella(Vec<BackendError>),
     #[error("No ip address found")]
     MissingIpAddress(),
-    #[error("Error from Netbox: {0}")]
-    NetboxError(#[from] NetboxError),
+    #[error("Error from Netbox: {error}")]
+    NetboxError {
+        error: NetboxError,
+        backtrace: Box<Backtrace>,
+    },
+}
+
+impl From<NetboxError> for BackendError {
+    fn from(error: NetboxError) -> Self {
+        BackendError::NetboxError {
+            error,
+            backtrace: Box::new(Backtrace::force_capture()),
+        }
+    }
+}
+
+impl From<ParseIntError> for BackendError {
+    fn from(error: ParseIntError) -> Self {
+        BackendError::ParseInt {
+            error,
+            backtrace: Box::new(Backtrace::force_capture()),
+        }
+    }
+}
+
+impl From<reqwest::Error> for BackendError {
+    fn from(error: reqwest::Error) -> Self {
+        BackendError::Reqwest {
+            error,
+            backtrace: Box::new(Backtrace::force_capture()),
+        }
+    }
 }
