@@ -19,9 +19,8 @@ pub enum AppRoute {
     Site {
         id: u32,
     },
-    Devices,
     #[default]
-    Home,
+    Devices,
 }
 
 impl AppRoute {
@@ -31,7 +30,6 @@ impl AppRoute {
 
     pub fn main_content(&self) -> Html {
         match self {
-            AppRoute::Home => html! {<h1>{"Home"}</h1>},
             AppRoute::Devices => html! {<DeviceList/>},
             AppRoute::Sites => html! {<SiteList/>},
             AppRoute::Site { id } => html! {<SiteDetails id={*id}/>},
@@ -39,7 +37,6 @@ impl AppRoute {
     }
     pub fn unauthenticated_content(&self) -> Html {
         match self {
-            AppRoute::Home => html! {  <p> { "You need to log in" } </p>},
             _ => html!(<LocationRedirect logout_href="/" />),
         }
     }
@@ -55,7 +52,6 @@ pub fn authenticated_sidebar() -> Html {
     });
     html! {
         <Nav>
-            <NavRouterItem<AppRoute> to={AppRoute::Home}>{"Start"}</NavRouterItem<AppRoute>>
             <NavRouterItem<AppRoute> to={AppRoute::Sites}>{"Gebäude"}</NavRouterItem<AppRoute>>
             <NavRouterItem<AppRoute> to={AppRoute::Devices}>{"Geräte"}</NavRouterItem<AppRoute>>
             <span onclick={logout}><NavItem>{"Logout"}</NavItem></span>

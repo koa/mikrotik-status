@@ -102,7 +102,7 @@ fn main_oauth2(props: &Props) -> Html {
     let oauth2_config = &props.config;
     html! {
         <OAuth2 config={oauth2_config.clone()}>
-            <Router<AppRoute> default={AppRoute::Home}>
+            <Router<AppRoute> default={AppRoute::default()}>
                 <MainPage/>
             </Router<AppRoute>>
         </OAuth2>
