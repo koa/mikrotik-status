@@ -12,11 +12,11 @@ pub struct SettingsData {
 
 impl SettingsData {
     pub fn create_from_config() -> error::Result<Self> {
-        let config = config()?;
+        let config = config();
         Ok(SettingsData {
-            client_id: &config.auth.client_id,
-            auth_url: config.auth.get_auth_url(),
-            token_url: config.auth.get_token_url(),
+            client_id: config.auth_client_id(),
+            auth_url: config.auth_url(),
+            token_url: config.auth_token_url(),
         })
     }
 }

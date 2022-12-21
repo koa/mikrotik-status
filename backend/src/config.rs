@@ -1,93 +1,79 @@
 use std::net::IpAddr;
-use std::path::Path;
 
-use config::{Config, Environment, File, FileFormat};
+use clap::Parser;
 use lazy_static::lazy_static;
-use log::{error, info};
-use serde::Deserialize;
 
-use crate::error;
-use crate::error::BackendError;
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Parser)]
 pub struct Settings {
-    pub auth: Auth,
-    pub server: Server,
-    pub netbox: Netbox,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Netbox {
-    pub endpoint: String,
-    pub token: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Auth {
-    pub client_id: String,
-    pub issuer: String,
-    token_url: Option<String>,
+    /// client-id for oauth2
+    #[arg(long, env = "AUTH_CLIENT_ID")]
+    auth_client_id: String,
+    /// issuer-url for oauth2
+    #[arg(long, env = "AUTH_ISSUER")]
+    auth_issuer: String,
+    /// auth token url for oauth2 (default to "AUTH_ISSUER/protocol/openid-connect/token")
+    #[arg(long, env = "AUTH_TOKEN_URL")]
+    auth_token_url: Option<String>,
+    /// auth token url for oauth2 (default to "AUTH_ISSUER/protocol/openid-connect/auth")
+    #[arg(long, env = "AUTH_URL")]
     auth_url: Option<String>,
+
+    /// webserver port
+    #[arg(long, default_value = "8080", env = "SERVER_PORT")]
+    server_port: u16,
+    /// mgmt port (default: SERVER_PORT+1000)
+    #[arg(long, env = "SERVER_MGMT_PORT")]
+    server_mgmt_port: Option<u16>,
+    /// Bind IP Address
+    #[arg(long, default_value = "::1", env = "SERVER_BIND_ADDR")]
+    server_bind_address: IpAddr,
+
+    /// URL of netbox server
+    #[arg(long, env = "NETBOX_ENDPOINT")]
+    netbox_endpoint: String,
+    /// Authentication token of netbox server
+    #[arg(long, env = "NETBOX_TOKEN")]
+    netbox_token: String,
 }
 
-impl Auth {
-    pub fn get_token_url(&self) -> String {
-        self.token_url
-            .clone()
-            .unwrap_or_else(|| format!("{}/protocol/openid-connect/token", self.issuer))
+impl Settings {
+    pub fn auth_client_id(&self) -> &str {
+        &self.auth_client_id
     }
-    pub fn get_auth_url(&self) -> String {
+    pub fn auth_issuer(&self) -> &str {
+        &self.auth_issuer
+    }
+    pub fn auth_token_url(&self) -> String {
+        self.auth_token_url
+            .clone()
+            .unwrap_or_else(|| format!("{}/protocol/openid-connect/token", self.auth_issuer))
+    }
+    pub fn auth_url(&self) -> String {
         self.auth_url
             .clone()
-            .unwrap_or_else(|| format!("{}/protocol/openid-connect/auth", self.issuer))
+            .unwrap_or_else(|| format!("{}/protocol/openid-connect/auth", self.auth_issuer))
+    }
+    pub fn server_port(&self) -> u16 {
+        self.server_port
+    }
+    pub fn server_mgmt_port(&self) -> u16 {
+        self.server_mgmt_port
+            .unwrap_or_else(|| self.server_port() + 1000)
+    }
+    pub fn server_bind_address(&self) -> &IpAddr {
+        &self.server_bind_address
+    }
+    pub fn netbox_endpoint(&self) -> &str {
+        &self.netbox_endpoint
+    }
+    pub fn netbox_token(&self) -> &str {
+        &self.netbox_token
     }
 }
 
-#[derive(Debug, Deserialize, Default)]
-pub struct Server {
-    port: Option<u16>,
-    mgmt_port: Option<u16>,
-    bind_address: Option<IpAddr>,
-}
-
-impl Server {
-    pub fn get_port(&self) -> u16 {
-        self.port.unwrap_or(8080)
-    }
-    pub fn get_mgmt_port(&self) -> u16 {
-        self.mgmt_port.unwrap_or_else(|| self.get_port() + 1000)
-    }
-    pub fn get_bind_address(&self) -> IpAddr {
-        self.bind_address.unwrap_or_else(|| IpAddr::from([0u8; 16]))
-    }
-}
-
-fn load_config() -> error::Result<Settings> {
-    let filename = "config.yaml";
-    let mut config_builder = Config::builder();
-    if Path::new(filename).exists() {
-        config_builder = config_builder.add_source(File::new(filename, FileFormat::Yaml));
-    }
-    let settings = config_builder
-        .add_source(Environment::default().separator("_"))
-        .build()
-        .map_err(|e| {
-            error!("Build error: {e}");
-            e
-        })?;
-    let result = settings.try_deserialize();
-    info!("done");
-    match result {
-        Ok(c) => Ok(c),
-        Err(e) => {
-            error!("parse error: {e:#?}");
-            Err(e.into())
-        }
-    }
-}
 lazy_static! {
-    pub static ref CONFIG: Result<Settings, BackendError> = load_config();
+    pub static ref CONFIG: Settings = Settings::parse();
 }
-pub fn config() -> Result<&'static Settings, &'static BackendError> {
-    return CONFIG.as_ref();
+pub fn config() -> &'static Settings {
+    return &CONFIG;
 }

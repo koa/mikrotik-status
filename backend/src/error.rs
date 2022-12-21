@@ -4,7 +4,6 @@ use std::fmt::{Debug, Display, Formatter};
 use std::num::ParseIntError;
 use std::sync::Arc;
 
-use config::ConfigError;
 use thiserror::Error;
 
 use crate::topology::query::NetboxError;
@@ -56,7 +55,7 @@ pub enum BackendError {
     },
     #[error("Error loading config: {error}\n{backtrace}")]
     ConfigError {
-        error: Arc<ConfigError>,
+        error: Arc<clap::Error>,
         backtrace: Arc<Backtrace>,
     },
 }
@@ -67,8 +66,8 @@ impl From<&BackendError> for BackendError {
     }
 }
 
-impl From<ConfigError> for BackendError {
-    fn from(error: ConfigError) -> Self {
+impl From<clap::Error> for BackendError {
+    fn from(error: clap::Error) -> Self {
         BackendError::ConfigError {
             error: Arc::new(error),
             backtrace: Arc::new(Backtrace::force_capture()),

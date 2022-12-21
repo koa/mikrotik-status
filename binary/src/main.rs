@@ -8,16 +8,16 @@ use actix_web_prometheus::PrometheusMetricsBuilder;
 use actix_web_static_files::ResourceFiles;
 use async_graphql::futures_util::future::join_all;
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
+use biscuit::ValidationOptions;
+use env_logger::Env;
+use prometheus::{histogram_opts, HistogramVec};
+use static_files::Resource;
+
 use backend::api::{create_schema, GraphqlSchema};
 use backend::config::config;
 use backend::context::UserInfo;
-use backend::error;
-use biscuit::ValidationOptions;
-use env_logger::Env;
-use log::error;
-use prometheus::{histogram_opts, HistogramVec};
-use static_files::Resource;
-use thiserror::Error;
+
+use crate::error::BinaryError;
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
@@ -59,31 +59,25 @@ struct ApplicationContext {
     schema: GraphqlSchema,
 }
 
-#[derive(Error, Debug)]
-enum BinaryError {
-    #[error("An IO Error happened")]
-    IO(#[from] std::io::Error),
-    #[error("An Error from prometheus")]
-    Prometheus(#[from] prometheus::Error),
-    #[error("An Error from Backend: {0}")]
-    Backend(#[from] error::BackendError),
-}
+mod error;
 
 #[actix_web::main]
-async fn main() {
+async fn main() -> Result<(), BinaryError> {
     env_logger::init_from_env(Env::default().filter_or("LOG_LEVEL", "info"));
-    let result: Result<(), BinaryError> = run_server().await;
+    run_server().await
+    /*
+    let result: Result<(), BinaryError> =
     if let Err(error) = result {
-        error!("There was a error: {error}");
-    }
+        error!("Cannot start server: {error:?}");
+    }*/
 }
 
 async fn run_server() -> Result<(), BinaryError> {
-    let config = config().map_err(|e| e.clone())?;
+    let config = config();
 
-    let bind_addr = config.server.get_bind_address();
-    let api_port = config.server.get_port();
-    let mgmt_port = config.server.get_mgmt_port();
+    let bind_addr = *config.server_bind_address();
+    let api_port = config.server_port();
+    let mgmt_port = config.server_mgmt_port();
 
     let mut labels = HashMap::new();
     labels.insert("server".to_string(), "api".to_string());
@@ -104,13 +98,13 @@ async fn run_server() -> Result<(), BinaryError> {
 
     let validation_options = ValidationOptions::default();
 
-    let issuer = config.auth.issuer.to_string();
-    let created_validator = OIDCValidator::new_from_issuer(issuer.clone(), validation_options)
+    let issuer = config.auth_issuer();
+    let created_validator = OIDCValidator::new_from_issuer(issuer.to_owned(), validation_options)
         .await
         .unwrap();
 
     let validator_config = OIDCValidatorConfig {
-        issuer,
+        issuer: issuer.to_string(),
         validator: created_validator,
     };
 

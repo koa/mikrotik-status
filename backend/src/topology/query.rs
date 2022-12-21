@@ -126,7 +126,7 @@ pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
         let id = site.id.parse()?;
         let name = site.name;
         let address = site.physical_address;
-        let mut site_idx = topo_builder.append_site(id, name, address);
+        let site_idx = topo_builder.append_site(id, name, address);
         for location in site.locations {
             let id = location.id.parse()?;
             let name = location.name;
@@ -147,11 +147,11 @@ where
     let name = request_body.operation_name;
     debug!("Graphql Request {name}: {request_body:?}");
     let client = reqwest::Client::new();
-    let config = config()?;
+    let config = config();
     let response: Response<Q::ResponseData> = client
-        .post(&config.netbox.endpoint)
+        .post(config.netbox_endpoint())
         .json(&request_body)
-        .header(AUTHORIZATION, format!("Token {}", &config.netbox.token))
+        .header(AUTHORIZATION, format!("Token {}", config.netbox_token()))
         .send()
         .await?
         .json()
