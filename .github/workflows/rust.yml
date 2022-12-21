@@ -64,4 +64,4 @@ jobs:
         cargo test --all-features
 
     - name: Build Deploy Artifact
-      run: cargo build -p artifact --release
+      run: cargo build -p mikrotik-status --release

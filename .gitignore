@@ -1,6 +1,4 @@
-/frontend/target
-/binary/target
-/backend/target
+target
 /.idea
 /*/.idea
 /frontend/graphql/schema.graphql

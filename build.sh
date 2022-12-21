@@ -1,7 +1,6 @@
 #!/bin/sh
 
-cd backend && cargo build --release &&\
-cd ../frontend &&\
+cd frontend &&\
 trunk build --release &&\
-cd ../binary &&\
-cargo build --release
+cd .. &&\
+cargo build -p mikrotik-status --release
