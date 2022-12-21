@@ -22,7 +22,7 @@ impl Site {
 
 pub async fn get_site(id: u32) -> Result<Option<Site>, BackendError> {
     let topology = get_topology().await?;
-    Ok(topology.get_site_by_id(id).map(|s| Site::new(s)))
+    Ok(topology.get_site_by_id(id).map(Site::new))
 }
 pub async fn list_sites() -> Result<Vec<Site>, BackendError> {
     let topology = get_topology().await?;

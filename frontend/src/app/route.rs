@@ -36,9 +36,7 @@ impl AppRoute {
         }
     }
     pub fn unauthenticated_content(&self) -> Html {
-        match self {
-            _ => html!(<LocationRedirect logout_href="/" />),
-        }
+        html!(<LocationRedirect logout_href="/" />)
     }
 }
 

@@ -134,6 +134,3 @@ fn main_page() -> Html {
         </BackdropViewer>
     }
 }
-fn switch_main(switch: AppRoute) -> Html {
-    switch.main_content()
-}

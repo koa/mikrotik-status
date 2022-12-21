@@ -15,7 +15,7 @@ pub struct GraphqlError(Vec<graphql_client::Error>);
 
 impl GraphqlError {
     pub fn new(errors: Option<Vec<graphql_client::Error>>) -> GraphqlError {
-        GraphqlError(errors.unwrap_or(Vec::new()))
+        GraphqlError(errors.unwrap_or_default())
     }
 }
 

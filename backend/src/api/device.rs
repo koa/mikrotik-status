@@ -65,7 +65,7 @@ impl Device {
 
 pub async fn get_device(id: u32) -> Result<Option<Device>, BackendError> {
     let topology = get_topology().await?;
-    Ok(topology.get_device_by_id(id).map(|d| Device::new(d)))
+    Ok(topology.get_device_by_id(id).map(Device::new))
 }
 
 pub async fn list_devices() -> Result<Vec<Device>, BackendError> {

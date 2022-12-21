@@ -75,5 +75,5 @@ lazy_static! {
     pub static ref CONFIG: Settings = Settings::parse();
 }
 pub fn config() -> &'static Settings {
-    return &CONFIG;
+    &CONFIG
 }
