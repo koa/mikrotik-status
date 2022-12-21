@@ -1,4 +1,4 @@
 [workspace]
 resolver = "2"
 members = ["backend", "frontend", "binary"]
-default-members = ["binary"]
+default-members = ["frontend", "binary"]
