@@ -597,7 +597,7 @@ dependencies = [
  "async-graphql",
  "cached",
  "clap",
- "graphql_client",
+ "graphql_client 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "indexmap",
  "ipnet",
  "lazy_static",
@@ -1237,8 +1237,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "backend",
+ "cached",
  "console_error_panic_hook",
- "graphql_client",
+ "graphql_client 0.11.0",
  "itertools",
  "js-sys",
  "lazy_static",
@@ -1250,6 +1251,7 @@ dependencies = [
  "serde-wasm-bindgen 0.4.5",
  "serde_json",
  "thiserror",
+ "tokio",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-logger",
@@ -1594,6 +1596,13 @@ dependencies = [
 [[package]]
 name = "graphql-introspection-query"
 version = "0.2.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "graphql-introspection-query"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f2a4732cf5140bd6c082434494f785a19cfb566ab07d1382c3671f5812fed6d"
 dependencies = [
@@ -1613,13 +1622,37 @@ dependencies = [
 [[package]]
 name = "graphql_client"
 version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fc16d75d169fddb720d8f1c7aed6413e329e1584079b9734ff07266a193f5bc"
 dependencies = [
- "graphql_query_derive",
+ "graphql_query_derive 0.11.0",
  "reqwest",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "graphql_client"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7fc16d75d169fddb720d8f1c7aed6413e329e1584079b9734ff07266a193f5bc"
+dependencies = [
+ "graphql_query_derive 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "graphql_client_codegen"
+version = "0.11.0"
+dependencies = [
+ "graphql-introspection-query 0.2.0",
+ "graphql-parser",
+ "heck",
+ "lazy_static",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn",
 ]
 
 [[package]]
@@ -1628,7 +1661,7 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f290ecfa3bea3e8a157899dc8a1d96ee7dd6405c18c8ddd213fc58939d18a0e9"
 dependencies = [
- "graphql-introspection-query",
+ "graphql-introspection-query 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "graphql-parser",
  "heck",
  "lazy_static",
@@ -1642,10 +1675,19 @@ dependencies = [
 [[package]]
 name = "graphql_query_derive"
 version = "0.11.0"
+dependencies = [
+ "graphql_client_codegen 0.11.0",
+ "proc-macro2",
+ "syn",
+]
+
+[[package]]
+name = "graphql_query_derive"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a755cc59cda2641ea3037b4f9f7ef40471c329f55c1fa2db6fa0bb7ae6c1f7ce"
 dependencies = [
- "graphql_client_codegen",
+ "graphql_client_codegen 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "proc-macro2",
  "syn",
 ]
@@ -1868,6 +1910,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
 dependencies = [
  "cfg-if",
+ "js-sys",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

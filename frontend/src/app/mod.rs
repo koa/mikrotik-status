@@ -1,29 +1,27 @@
 use lazy_static::lazy_static;
 use log::error;
-use patternfly_yew::BackdropViewer;
-use patternfly_yew::Page;
-use patternfly_yew::PageSidebar;
-use patternfly_yew::ToastViewer;
+use patternfly_yew::{BackdropViewer, Page, PageSidebar, ToastViewer};
 use reqwest::Url;
 use wasm_bindgen_futures::spawn_local;
-use yew::html_nested;
-use yew::{function_component, Context, Properties};
-use yew::{html, Html};
-use yew_nested_router::Router;
-use yew_nested_router::Switch;
-use yew_oauth2::oauth2::OAuth2;
-use yew_oauth2::prelude::oauth2::Config;
-use yew_oauth2::prelude::Authenticated;
-use yew_oauth2::prelude::Failure;
-use yew_oauth2::prelude::NotAuthenticated;
+use yew::{function_component, html, html_nested, Context, Html, Properties};
+use yew_nested_router::{Router, Switch};
+use yew_oauth2::{
+    oauth2::OAuth2,
+    prelude::{oauth2::Config, Authenticated, Failure, NotAuthenticated},
+};
 
-use route::AppRoute;
+use route::{AppRoute, AuthenticatedSidebar, NotAuthenticatedSidebar};
 
-use crate::app::route::AuthenticatedSidebar;
-use crate::app::route::NotAuthenticatedSidebar;
-use crate::graphql::query;
-use crate::graphql::settings::settings::{ResponseData, SettingsSettings};
-use crate::graphql::settings::{settings, Settings};
+use crate::{
+    components::context::ApiContextProvider,
+    graphql::{
+        query_with_scope,
+        settings::{
+            settings::{self, ResponseData, SettingsSettings},
+            Settings,
+        },
+    },
+};
 
 pub mod route;
 
@@ -75,7 +73,8 @@ impl yew::Component for App {
         if first_render {
             let scope = ctx.link().clone();
             spawn_local(async move {
-                let result = query::<Settings, _>(scope.clone(), settings::Variables {}).await;
+                let result =
+                    query_with_scope::<Settings, _>(scope.clone(), settings::Variables {}).await;
                 match result {
                     Ok(ResponseData {
                         settings:
@@ -116,12 +115,14 @@ fn main_page() -> Html {
             <ToastViewer>
                 <Failure>{"Fail"}</Failure>
                 <Authenticated>
-                    <Page sidebar={html_nested! {<PageSidebar><AuthenticatedSidebar/></PageSidebar>}}>
-                      //logo={logo}
-                        <Switch<AppRoute>
-                            render = {|r: AppRoute| r.main_content()}
-                        />
-                    </Page>
+                    <ApiContextProvider>
+                        <Page sidebar={html_nested! {<PageSidebar><AuthenticatedSidebar/></PageSidebar>}}>
+                          //logo={logo}
+                            <Switch<AppRoute>
+                                render = {|r: AppRoute| r.main_content()}
+                            />
+                        </Page>
+                    </ApiContextProvider>
                 </Authenticated>
                 <NotAuthenticated>
                     <Page sidebar={html_nested! {<PageSidebar><NotAuthenticatedSidebar/></PageSidebar>}}>

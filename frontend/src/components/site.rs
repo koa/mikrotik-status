@@ -1,4 +1,6 @@
-use log::error;
+use std::rc::Rc;
+
+use log::{error, info};
 use patternfly_yew::Card;
 use patternfly_yew::DescriptionGroup;
 use patternfly_yew::DescriptionList;
@@ -9,10 +11,7 @@ use yew::{html, Callback, Component, Context, Html, Properties};
 use yew_nested_router::prelude::RouterContext;
 
 use crate::app::route::AppRoute;
-use crate::components::site::DataState::Loading;
-use crate::graphql::query;
-use crate::graphql::sites::get_site_details::GetSiteDetailsSite;
-use crate::graphql::sites::{get_site_details, GetSiteDetails};
+use crate::components::context::{ApiContext, SiteDetails};
 
 pub struct SiteComponent {
     id: u32,
@@ -21,7 +20,8 @@ pub struct SiteComponent {
 enum DataState {
     Loading,
     NotFound,
-    Data(GetSiteDetailsSite),
+    Data(Rc<SiteDetails>),
+    Error,
 }
 
 #[derive(Clone, PartialEq, Eq, Properties)]
@@ -31,7 +31,8 @@ pub struct SiteProperties {
 
 pub enum SiteMsg {
     CardClicked,
-    Loaded(Option<GetSiteDetailsSite>),
+    Loaded(Rc<SiteDetails>),
+    Error,
 }
 
 impl Component for SiteComponent {
@@ -41,7 +42,7 @@ impl Component for SiteComponent {
     fn create(ctx: &Context<Self>) -> Self {
         Self {
             id: ctx.props().id,
-            data: Loading,
+            data: DataState::Loading,
         }
     }
 
@@ -58,12 +59,16 @@ impl Component for SiteComponent {
                 false
             }
 
-            SiteMsg::Loaded(Some(data)) => {
+            SiteMsg::Loaded(data) => {
                 self.data = DataState::Data(data);
                 true
             }
-            SiteMsg::Loaded(None) => {
+            /*SiteMsg::Loaded(None) => {
                 self.data = DataState::NotFound;
+                true
+            }*/
+            SiteMsg::Error => {
+                self.data = DataState::Error;
                 true
             }
         }
@@ -71,11 +76,11 @@ impl Component for SiteComponent {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         match &self.data {
-            Loading => html! {<Spinner/>},
+            DataState::Loading => html! {<Spinner/>},
             DataState::NotFound => html! {<p>{"Not found"}</p>},
             DataState::Data(data) => {
-                let title = html! {<>{data.name.as_str()}</>};
-                let address = &data.address;
+                let title = html! {<>{data.name()}</>};
+                let address = &data.address();
 
                 let content = address
                     .iter()
@@ -86,7 +91,7 @@ impl Component for SiteComponent {
                     e.stop_propagation();
                     SiteMsg::CardClicked
                 });
-                let count = data.locations.len();
+                let count = data.devices().len();
                 let mut properties = Vec::new();
                 if count > 0 {
                     properties.push(html! {
@@ -104,24 +109,31 @@ impl Component for SiteComponent {
                     </Card>
                 }
             }
+            DataState::Error => html! {<p>{"Error"}</p>},
         }
     }
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
             let scope = ctx.link().clone();
-            let id = self.id.into();
-            spawn_local(async move {
-                let result =
-                    query::<GetSiteDetails, _>(scope.clone(), get_site_details::Variables { id })
-                        .await;
-                match result {
-                    Ok(get_site_details::ResponseData { site }) => {
-                        scope.send_message(SiteMsg::Loaded(site));
+            if let Some(api) = ApiContext::extract_from_scope(&scope) {
+                let id = self.id;
+                spawn_local(async move {
+                    let result = api.get_site_details(id).await;
+                    match result {
+                        Ok(site) => {
+                            scope.send_message(SiteMsg::Loaded(site.clone()));
+                        }
+                        Err(err) => {
+                            scope.send_message(SiteMsg::Error);
+                            error!("Error on server {err:?}");
+                        }
                     }
-                    Err(err) => error!("Error on server {err:?}"),
-                }
-            });
+                });
+            } else {
+                scope.send_message(SiteMsg::Error);
+                info!("No Context found");
+            }
         }
     }
 }

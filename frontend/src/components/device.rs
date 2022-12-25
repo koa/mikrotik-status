@@ -13,7 +13,7 @@ use crate::graphql::devices::list_devices::ListDevicesDevices;
 use crate::graphql::devices::ping_device::PingDeviceDevice;
 use crate::graphql::devices::ping_device::PingDeviceDevicePing;
 use crate::graphql::devices::{ping_device, PingDevice};
-use crate::graphql::query;
+use crate::graphql::query_with_scope;
 
 pub struct DeviceComponent {
     data: Rc<ListDevicesDevices>,
@@ -86,7 +86,8 @@ impl Component for DeviceComponent {
             let id = self.data.id;
             spawn_local(async move {
                 let result =
-                    query::<PingDevice, _>(scope.clone(), ping_device::Variables { id }).await;
+                    query_with_scope::<PingDevice, _>(scope.clone(), ping_device::Variables { id })
+                        .await;
                 match result {
                     Ok(ping_device::ResponseData {
                         device: Some(PingDeviceDevice { ping }),

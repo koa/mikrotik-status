@@ -9,7 +9,7 @@ use yew::{html, Component, Context, Html};
 use crate::components::device::DeviceComponent;
 use crate::graphql::devices::list_devices::ListDevicesDevices;
 use crate::graphql::devices::{list_devices, ListDevices};
-use crate::graphql::query;
+use crate::graphql::query_with_scope;
 
 pub struct DeviceList {
     visible_devices: Vec<Rc<ListDevicesDevices>>,
@@ -59,7 +59,8 @@ impl Component for DeviceList {
             let scope = ctx.link().clone();
             spawn_local(async move {
                 let result =
-                    query::<ListDevices, _>(scope.clone(), list_devices::Variables {}).await;
+                    query_with_scope::<ListDevices, _>(scope.clone(), list_devices::Variables {})
+                        .await;
                 match result {
                     Ok(list_devices::ResponseData { devices }) => {
                         scope.send_message(DeviceListMessage::UpdateDevices(devices));

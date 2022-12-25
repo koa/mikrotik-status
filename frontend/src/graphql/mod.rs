@@ -25,7 +25,7 @@ pub fn host() -> String {
 }
 
 /// Send Graphql-Query to server
-pub async fn query<Q: GraphQLQuery, S: Component>(
+pub async fn query_with_scope<Q: GraphQLQuery, S: Component>(
     scope: Scope<S>,
     request: Q::Variables,
 ) -> Result<Q::ResponseData, FrontendError> {
@@ -33,8 +33,15 @@ pub async fn query<Q: GraphQLQuery, S: Component>(
         .context::<OAuth2Context>(Callback::noop())
         .map(|r| r.0);
 
+    query_with_credentials::<Q>(&credentials, request).await
+}
+
+pub async fn query_with_credentials<Q: GraphQLQuery>(
+    credentials: &Option<OAuth2Context>,
+    request: <Q>::Variables,
+) -> Result<<Q>::ResponseData, FrontendError> {
     let mut headers = HeaderMap::new();
-    if let Some(Authenticated(Authentication { access_token, .. })) = credentials.as_ref() {
+    if let Some(Authenticated(Authentication { access_token, .. })) = credentials {
         headers.insert(AUTHORIZATION, format!("Bearer {access_token}").parse()?);
     }
     let client = reqwest::Client::builder()
@@ -46,6 +53,6 @@ pub async fn query<Q: GraphQLQuery, S: Component>(
     } else if let Some(data) = response.data {
         Ok(data)
     } else {
-        Err(FrontendError::Graphql(response.errors.unwrap_or_default()))
+        Err(FrontendError::Graphql(vec![]))
     }
 }

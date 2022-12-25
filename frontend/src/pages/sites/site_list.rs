@@ -7,7 +7,7 @@ use yew::classes;
 use yew::{html, Component, Context, Html};
 
 use crate::components::site::SiteComponent;
-use crate::graphql::query;
+use crate::graphql::query_with_scope;
 use crate::graphql::sites::list_sites::{ListSitesSites, Variables};
 use crate::graphql::sites::{list_sites, ListSites};
 
@@ -59,7 +59,7 @@ impl Component for SiteList {
         if first_render {
             let scope = ctx.link().clone();
             spawn_local(async move {
-                let result = query::<ListSites, _>(scope.clone(), Variables {}).await;
+                let result = query_with_scope::<ListSites, _>(scope.clone(), Variables {}).await;
                 match result {
                     Ok(list_sites::ResponseData { sites }) => {
                         scope.send_message(SiteListMsg::UpdateSites(sites));
