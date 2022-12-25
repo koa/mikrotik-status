@@ -10,8 +10,8 @@ use yew_oauth2::oauth2::use_auth_agent;
 use yew_oauth2::oauth2::LocationRedirect;
 
 use crate::pages::devices::DeviceList;
-use crate::pages::sites::site_details::SiteDetails;
-use crate::pages::sites::site_list::SiteList;
+use crate::pages::sites::site_details::SiteDetailsPage;
+use crate::pages::sites::site_list::SiteListPage;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Target)]
 pub enum AppRoute {
@@ -31,8 +31,8 @@ impl AppRoute {
     pub fn main_content(&self) -> Html {
         match self {
             AppRoute::Devices => html! {<DeviceList/>},
-            AppRoute::Sites => html! {<SiteList/>},
-            AppRoute::Site { id } => html! {<SiteDetails id={*id}/>},
+            AppRoute::Sites => html! {<SiteListPage/>},
+            AppRoute::Site { id } => html! {<SiteDetailsPage id={*id}/>},
         }
     }
     pub fn unauthenticated_content(&self) -> Html {

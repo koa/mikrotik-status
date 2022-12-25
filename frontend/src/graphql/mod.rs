@@ -10,6 +10,7 @@ use yew_oauth2::prelude::{Authentication, OAuth2Context};
 use crate::error::FrontendError;
 
 pub mod devices;
+pub mod locations;
 pub mod settings;
 pub mod sites;
 

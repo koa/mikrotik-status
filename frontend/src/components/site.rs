@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use log::{error, info};
+use log::error;
 use patternfly_yew::Card;
 use patternfly_yew::DescriptionGroup;
 use patternfly_yew::DescriptionList;
@@ -13,13 +13,13 @@ use yew_nested_router::prelude::RouterContext;
 use crate::app::route::AppRoute;
 use crate::components::context::{ApiContext, SiteDetails};
 
-pub struct SiteComponent {
+pub struct SiteCard {
     id: u32,
     data: DataState,
 }
 enum DataState {
     Loading,
-    NotFound,
+    //NotFound,
     Data(Rc<SiteDetails>),
     Error,
 }
@@ -35,7 +35,7 @@ pub enum SiteMsg {
     Error,
 }
 
-impl Component for SiteComponent {
+impl Component for SiteCard {
     type Message = SiteMsg;
     type Properties = SiteProperties;
 
@@ -77,7 +77,7 @@ impl Component for SiteComponent {
     fn view(&self, ctx: &Context<Self>) -> Html {
         match &self.data {
             DataState::Loading => html! {<Spinner/>},
-            DataState::NotFound => html! {<p>{"Not found"}</p>},
+            //DataState::NotFound => html! {<p>{"Not found"}</p>},
             DataState::Data(data) => {
                 let title = html! {<>{data.name()}</>};
                 let address = &data.address();
@@ -91,7 +91,7 @@ impl Component for SiteComponent {
                     e.stop_propagation();
                     SiteMsg::CardClicked
                 });
-                let count = data.devices().len();
+                let count = data.locations().len();
                 let mut properties = Vec::new();
                 if count > 0 {
                     properties.push(html! {
@@ -122,7 +122,7 @@ impl Component for SiteComponent {
                     let result = api.get_site_details(id).await;
                     match result {
                         Ok(site) => {
-                            scope.send_message(SiteMsg::Loaded(site.clone()));
+                            scope.send_message(SiteMsg::Loaded(site));
                         }
                         Err(err) => {
                             scope.send_message(SiteMsg::Error);
@@ -132,7 +132,7 @@ impl Component for SiteComponent {
                 });
             } else {
                 scope.send_message(SiteMsg::Error);
-                info!("No Context found");
+                error!("No Context found");
             }
         }
     }

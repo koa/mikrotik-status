@@ -1,8 +1,8 @@
 use async_graphql::Object;
 
 use crate::api::device::{get_device, list_devices, Device};
-use crate::api::location::list_locations;
 use crate::api::location::Location;
+use crate::api::location::{get_location, list_locations};
 use crate::api::settings::SettingsData;
 use crate::api::site::Site;
 use crate::api::site::{get_site, list_sites};
@@ -36,5 +36,9 @@ impl Query {
     /// list all known locations
     async fn locations(&self) -> Result<Vec<Location>, BackendError> {
         list_locations().await
+    }
+    /// get single location
+    async fn location(&self, id: u32) -> Result<Option<Location>, BackendError> {
+        get_location(id).await
     }
 }

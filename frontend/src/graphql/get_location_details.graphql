@@ -1,0 +1,5 @@
+query GetLocationDetails($id: Int!){
+    location(id: $id){
+        name
+    }
+}

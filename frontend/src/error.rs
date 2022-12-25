@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use std::num::TryFromIntError;
 
 use log::error;
 use reqwest::header::InvalidHeaderValue;
@@ -53,4 +54,6 @@ pub enum FrontendError {
     Reqwest(#[from] reqwest::Error),
     #[error("Invalid http header")]
     InvalidHeader(#[from] InvalidHeaderValue),
+    #[error("Cannot convert int value")]
+    TryFromInt(#[from] TryFromIntError),
 }
