@@ -13,7 +13,7 @@ yew = { version = "0.20.0", features = ["csr"] }
 yewtil = { version = "0.4", features = ["future"] }
 yew-nested-router = { version = "0.1.0" }
 patternfly-yew = "0.3.0"
-graphql_client = { features = ["reqwest" ], path = "../../graphql-client/graphql_client" }
+graphql_client = { version = "0.11.0", features = ["reqwest"] }
 reqwest = "0.11.13"
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.68"
