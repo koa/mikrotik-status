@@ -5,6 +5,7 @@ use std::time::Duration;
 use async_graphql::Object;
 use log::warn;
 
+use crate::api::location::Location;
 use crate::error::BackendError;
 use crate::topology::model::device::DeviceRef;
 use crate::topology::query::get_topology;
@@ -60,6 +61,12 @@ impl Device {
                 PingResult { answer: None }
             }
         })
+    }
+    async fn location(&self) -> Option<Location> {
+        self.0.location().map(Location::new)
+    }
+    async fn has_routeros(&self) -> bool {
+        self.0.has_routeros()
     }
 }
 

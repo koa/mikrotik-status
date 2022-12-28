@@ -1,5 +1,6 @@
+use std::hash::Hash;
 use std::num::TryFromIntError;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use cached::instant::Instant;
@@ -12,6 +13,8 @@ use yew::{
 };
 use yew_oauth2::prelude::OAuth2Context;
 
+use crate::graphql::devices::get_device_details::GetDeviceDetailsDevice;
+use crate::graphql::devices::{get_device_details, GetDeviceDetails};
 use crate::graphql::locations::get_location_details::GetLocationDetailsLocation;
 use crate::graphql::locations::{get_location_details, GetLocationDetails};
 use crate::graphql::sites::get_site_details::GetSiteDetailsSite;
@@ -21,6 +24,21 @@ use crate::{
     graphql::query_with_credentials,
     graphql::sites::{get_site_details, GetSiteDetails},
 };
+
+#[derive(Clone, Debug, Default)]
+pub struct DeviceDetails {
+    name: String,
+    has_routeros: bool,
+}
+
+impl DeviceDetails {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn has_routeros(&self) -> bool {
+        self.has_routeros
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct SiteDetails {
@@ -52,6 +70,7 @@ struct Caches {
     sites_cache: Rc<Mutex<Option<(Rc<Vec<u32>>, Instant)>>>,
     site_cache: TimedSizedCache<u32, Rc<Mutex<Option<Rc<SiteDetails>>>>>,
     location_cache: TimedSizedCache<u32, Rc<Mutex<Option<Rc<LocationDetails>>>>>,
+    device_cache: TimedSizedCache<u32, Rc<Mutex<Option<Rc<DeviceDetails>>>>>,
 }
 
 impl Default for Caches {
@@ -63,11 +82,16 @@ impl Default for Caches {
 #[derive(Debug, Clone, Default)]
 pub struct LocationDetails {
     name: String,
+    devices: Vec<u32>,
 }
 
 impl LocationDetails {
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn devices(&self) -> &Vec<u32> {
+        &self.devices
     }
 }
 
@@ -77,6 +101,7 @@ impl Caches {
             sites_cache: Rc::new(Default::default()),
             site_cache: TimedSizedCache::with_size_and_lifespan(30, MAX_CACHE_TIME),
             location_cache: TimedSizedCache::with_size_and_lifespan(50, MAX_CACHE_TIME),
+            device_cache: TimedSizedCache::with_size_and_lifespan(50, MAX_CACHE_TIME),
         }
     }
 }
@@ -120,23 +145,42 @@ impl ApiContext {
         Ok(cache.insert((Rc::new(id_list), Instant::now())).0.clone())
     }
 
-    pub async fn get_site_details(&self, id: u32) -> Result<Rc<SiteDetails>, FrontendError> {
-        let entry_mutex = self
-            .caches
-            .lock()
-            .await
-            .site_cache
-            .cache_get_or_set_with(id, Default::default)
+    async fn fetch_cached_entry<Q, R, ID, CS, F, RE>(
+        &self,
+        id: ID,
+        cache_selector: CS,
+        fetcher: F,
+        response_extractor: RE,
+    ) -> Result<Rc<R>, FrontendError>
+    where
+        CS: Fn(&mut Caches) -> &mut TimedSizedCache<ID, Rc<Mutex<Option<Rc<R>>>>>,
+        R: Default,
+        ID: Hash + Eq + Clone,
+        Q: GraphQLQuery,
+        F: Fn(&ID) -> Q::Variables,
+        RE: Fn(Q::ResponseData) -> Option<Result<R, FrontendError>>,
+    {
+        let entry_mutex = cache_selector(self.caches.lock().await.deref_mut())
+            .cache_get_or_set_with(id.clone(), Default::default)
             .clone();
         let mut entry_ref = entry_mutex.lock().await;
         if let Some(found_entry) = entry_ref.deref() {
             return Ok(found_entry.clone());
         }
-        let data = Rc::new(
-            self.query::<GetSiteDetails>(get_site_details::Variables { id: id.into() })
-                .await?
-                .site
-                .map(
+        let variables = fetcher(&id);
+        let result = self.query::<Q>(variables).await?;
+        let data = response_extractor(result);
+        let ret = data.transpose()?.unwrap_or_default();
+        Ok(entry_ref.insert(Rc::new(ret)).clone())
+    }
+
+    pub async fn get_site_details(&self, id: u32) -> Result<Rc<SiteDetails>, FrontendError> {
+        self.fetch_cached_entry::<GetSiteDetails, _, _, _, _, _>(
+            id,
+            |c| &mut c.site_cache,
+            |id| get_site_details::Variables { id: (*id).into() },
+            |data: get_site_details::ResponseData| {
+                data.site.map(
                     |GetSiteDetailsSite {
                          locations,
                          name,
@@ -152,37 +196,55 @@ impl ApiContext {
                         })
                     },
                 )
-                .transpose()?
-                .unwrap_or_default(),
-        );
-        Ok(entry_ref.insert(data).clone())
+            },
+        )
+        .await
     }
     pub async fn get_location_details(
         &self,
         id: u32,
     ) -> Result<Rc<LocationDetails>, FrontendError> {
-        let entry_mutex = self
-            .caches
-            .lock()
-            .await
-            .location_cache
-            .cache_get_or_set_with(id, Default::default)
-            .clone();
-        let mut entry_ref = entry_mutex.lock().await;
-        if let Some(found_entry) = entry_ref.deref() {
-            return Ok(found_entry.clone());
-        }
-        let data = Rc::new(
-            self.query::<GetLocationDetails>(get_location_details::Variables { id: id.into() })
-                .await?
-                .location
-                .map(|GetLocationDetailsLocation { name }| {
-                    Ok::<LocationDetails, FrontendError>(LocationDetails { name })
-                })
-                .transpose()?
-                .unwrap_or_default(),
-        );
-        Ok(entry_ref.insert(data).clone())
+        self.fetch_cached_entry::<GetLocationDetails, _, _, _, _, _>(
+            id,
+            |c| &mut c.location_cache,
+            |id| get_location_details::Variables { id: (*id).into() },
+            |data| {
+                data.location
+                    .map(|GetLocationDetailsLocation { name, devices }| {
+                        Ok::<LocationDetails, FrontendError>(LocationDetails {
+                            name,
+                            devices: devices
+                                .iter()
+                                .map(|d| d.id.try_into())
+                                .collect::<Result<Vec<u32>, _>>()?,
+                        })
+                    })
+            },
+        )
+        .await
+    }
+    pub async fn get_device_details(&self, id: u32) -> Result<Rc<DeviceDetails>, FrontendError> {
+        self.fetch_cached_entry::<GetDeviceDetails, _, _, _, _, _>(
+            id,
+            |c| &mut c.device_cache,
+            |id| get_device_details::Variables { id: (*id).into() },
+            |data| {
+                data.device.map(
+                    |GetDeviceDetailsDevice {
+                         id,
+                         name,
+                         location,
+                         has_routeros,
+                     }| {
+                        Ok::<DeviceDetails, FrontendError>(DeviceDetails {
+                            name,
+                            has_routeros: has_routeros,
+                        })
+                    },
+                )
+            },
+        )
+        .await
     }
 }
 

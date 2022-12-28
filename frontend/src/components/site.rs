@@ -47,14 +47,14 @@ impl Component for SiteCard {
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        let navigator = ctx
-            .link()
-            .context::<RouterContext<AppRoute>>(Default::default())
-            .expect("Cannot be used outside of a router")
-            .0;
 
         match msg {
             SiteMsg::CardClicked => {
+                let navigator = ctx
+                    .link()
+                    .context::<RouterContext<AppRoute>>(Default::default())
+                    .expect("Cannot be used outside of a router")
+                    .0;
                 navigator.push(AppRoute::site(self.id));
                 false
             }

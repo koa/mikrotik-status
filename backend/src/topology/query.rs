@@ -15,6 +15,7 @@ use crate::config::config;
 use crate::error::{BackendError, GraphqlError};
 use crate::topology::graphql_operations::fetch_topology::IpamIPAddressRoleChoices;
 use crate::topology::graphql_operations::FetchTopology;
+use crate::topology::model::device::DeviceBuilder;
 use crate::topology::model::Topology;
 
 enum PortType {
@@ -66,9 +67,11 @@ pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
     let mut device_interface_map = HashMap::new();
     let mut device_front_map = HashMap::new();
     let mut device_rear_map = HashMap::new();
+    let mut devices_of_location: HashMap<_, Vec<_>> = HashMap::new();
     for device_entry in netbox_topology.device_list.into_iter().flatten() {
         let has_routeros = routeros_device_types.contains(device_entry.device_type.id.as_str());
-        let mut device_builder = topo_builder.append_device(
+
+        let mut device_builder = DeviceBuilder::new(
             device_entry.id.parse()?,
             device_entry.name.clone().unwrap_or_default(),
             has_routeros,
@@ -110,7 +113,18 @@ pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
             front_idx_list.push((front_id, front_idx));
         }
 
-        let dev_idx = device_builder.build();
+        let dev_idx = topo_builder.devices().len();
+        if let Some(id) = device_entry
+            .location
+            .and_then(|location_of_device| location_of_device.id.parse::<u32>().ok())
+        {
+            device_builder.set_location(id);
+            devices_of_location.entry(id).or_default().push(dev_idx);
+        }
+        if let Ok(site_id) = device_entry.site.id.parse::<u32>() {
+            device_builder.set_site(site_id);
+        }
+        topo_builder.append_device(device_builder);
         for (port_id, port_idx) in if_idx {
             device_interface_map.insert(port_id, (dev_idx, port_idx));
         }
@@ -130,10 +144,13 @@ pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
         for location in site.locations {
             let id = location.id.parse()?;
             let name = location.name;
-            let location_idx = topo_builder.append_location(id, name);
+            let mut devices = devices_of_location.remove(&id).unwrap_or_default();
+            devices.shrink_to_fit();
+            let location_idx = topo_builder.append_location(id, name, devices);
             topo_builder.set_site_of_location(location_idx, site_idx);
         }
     }
+
     Ok(topo_builder.build())
 }
 

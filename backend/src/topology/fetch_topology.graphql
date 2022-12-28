@@ -37,6 +37,9 @@ query FetchTopology{
         location {
             id
         }
+        site {
+            id
+        }
     }
     site_list{
         id

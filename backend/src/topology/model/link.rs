@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::topology::model::device::{PortIdx, PortSide};
-use crate::topology::model::{Topology, TopologyBuilder, TopologyError};
+use crate::topology::model::device::{DeviceBuilder, PortIdx, PortSide};
+use crate::topology::model::{Topology, TopologyError};
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Link {
@@ -14,22 +14,20 @@ impl Link {
     }
 }
 
-pub struct LinkBuilder<'a> {
-    topo_builder: &'a mut TopologyBuilder,
+pub struct LinkBuilder {
     path: Vec<LinkSegment>,
 }
 
-impl<'a> LinkBuilder<'a> {
+impl LinkBuilder {
     pub fn append_segment(
         &mut self,
+        devices: &[DeviceBuilder],
         left_device_idx: usize,
         left_port: usize,
         right_device_idx: usize,
         right_port: usize,
     ) -> Result<usize, TopologyError> {
-        let left_device = self
-            .topo_builder
-            .devices
+        let left_device = devices
             .get(left_device_idx)
             .ok_or(TopologyError::MissingDeviceReference(left_device_idx))?;
         if left_device.ports().len() <= left_port {
@@ -38,9 +36,7 @@ impl<'a> LinkBuilder<'a> {
                 port_idx: left_device_idx,
             });
         }
-        let right_device = self
-            .topo_builder
-            .devices
+        let right_device = devices
             .get(right_device_idx)
             .ok_or(TopologyError::MissingDeviceReference(right_device_idx))?;
         if right_device.ports().len() <= right_port {
@@ -64,15 +60,11 @@ impl<'a> LinkBuilder<'a> {
         });
         Ok(self.path.len() - 1)
     }
-    pub fn build(self) -> usize {
-        self.topo_builder.links.push(Link { path: self.path });
-        self.topo_builder.links.len() - 1
+    pub fn build(self) -> Link {
+        Link { path: self.path }
     }
-    pub fn new(topo_builder: &'a mut TopologyBuilder) -> Self {
-        Self {
-            topo_builder,
-            path: vec![],
-        }
+    pub fn new() -> Self {
+        Self { path: vec![] }
     }
 }
 

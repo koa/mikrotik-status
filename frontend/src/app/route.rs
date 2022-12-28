@@ -5,13 +5,18 @@ use yew::Callback;
 use yew::MouseEvent;
 use yew::{function_component, html, Html};
 use yew_nested_router::Target;
-use yew_oauth2::agent::OAuth2Operations;
-use yew_oauth2::oauth2::use_auth_agent;
-use yew_oauth2::oauth2::LocationRedirect;
+use yew_oauth2::{
+    agent::OAuth2Operations,
+    oauth2::{use_auth_agent, LocationRedirect},
+};
 
-use crate::pages::devices::DeviceList;
-use crate::pages::sites::site_details::SiteDetailsPage;
-use crate::pages::sites::site_list::SiteListPage;
+use crate::pages::{
+    devices::DeviceList,
+    sites::{
+        device_details::DeviceDetailsPage, location_details::LocationDetailsPage,
+        site_details::SiteDetailsPage, site_list::SiteListPage,
+    },
+};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Target)]
 pub enum AppRoute {
@@ -21,18 +26,32 @@ pub enum AppRoute {
     },
     #[default]
     Devices,
+    Device {
+        id: u32,
+    },
+    Location {
+        id: u32,
+    },
 }
 
 impl AppRoute {
     pub fn site(id: u32) -> AppRoute {
         AppRoute::Site { id }
     }
+    pub fn location(id: u32) -> AppRoute {
+        AppRoute::Location { id }
+    }
+    pub fn device(id: u32) -> AppRoute {
+        AppRoute::Device { id }
+    }
 
     pub fn main_content(&self) -> Html {
         match self {
             AppRoute::Devices => html! {<DeviceList/>},
+            AppRoute::Device { id } => html! {<DeviceDetailsPage id={*id}/>},
             AppRoute::Sites => html! {<SiteListPage/>},
             AppRoute::Site { id } => html! {<SiteDetailsPage id={*id}/>},
+            AppRoute::Location { id } => html! {<LocationDetailsPage id={*id}/>},
         }
     }
     pub fn unauthenticated_content(&self) -> Html {

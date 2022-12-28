@@ -7,6 +7,7 @@ use yew::classes;
 use yew::{html, Component, Context, Html};
 
 use crate::components::device::DeviceComponent;
+use crate::error::FrontendError;
 use crate::graphql::devices::list_devices::ListDevicesDevices;
 use crate::graphql::devices::{list_devices, ListDevices};
 use crate::graphql::query_with_scope;
@@ -48,10 +49,14 @@ impl Component for DeviceList {
                 .visible_devices
                 .iter()
                 .map(|data| {
-                    html! {<DeviceComponent {data}/>}
+                    let id: u32 = data.id.try_into()?;
+                    Ok(html! {<DeviceComponent id={id}/>})
                 })
-                .collect::<Html>();
-            html! {<div class={classes!("card-grid")}>{device_cards}</div>}
+                .collect::<Result<Html, FrontendError>>();
+            match device_cards {
+                Ok(device_cards) => html! {<div class={classes!("card-grid")}>{device_cards}</div>},
+                Err(e) => html! {<p>{"Error"}</p>},
+            }
         }
     }
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {

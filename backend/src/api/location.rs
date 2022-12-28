@@ -1,5 +1,6 @@
 use async_graphql::Object;
 
+use crate::api::device::Device;
 use crate::api::site::Site;
 use crate::error::BackendError;
 use crate::topology::model::location::LocationRef;
@@ -7,6 +8,12 @@ use crate::topology::query::get_topology;
 
 #[derive(Debug)]
 pub struct Location(LocationRef);
+
+impl From<LocationRef> for Location {
+    fn from(value: LocationRef) -> Self {
+        Location(value)
+    }
+}
 
 impl Location {
     pub fn new(s: LocationRef) -> Location {
@@ -43,5 +50,9 @@ impl Location {
           return  Ok(None);
         };
         Ok(Some(site.into()))
+    }
+    /// devices on that location
+    async fn devices(&self) -> Vec<Device> {
+        self.0.devices().into_iter().map(Device::new).collect()
     }
 }

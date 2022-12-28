@@ -4,10 +4,11 @@ use std::sync::Arc;
 use log::warn;
 use thiserror::Error;
 
-use device::{Device, DeviceBuilder, DeviceRef, PortIdx};
-use link::{Link, LinkBuilder};
+use device::{Device, DeviceRef, PortIdx};
+use link::Link;
 use site::{Site, SiteBuilder, SiteRef};
 
+use crate::topology::model::device::DeviceBuilder;
 use crate::topology::model::location::{Location, LocationBuilder, LocationRef};
 
 pub mod device;
@@ -117,25 +118,27 @@ impl Topology {
 
 #[derive(Default)]
 pub struct TopologyBuilder {
-    devices: Vec<Device>,
+    devices: Vec<DeviceBuilder>,
     links: Vec<Link>,
     sites: Vec<SiteBuilder>,
     locations: Vec<LocationBuilder>,
 }
 
 impl TopologyBuilder {
-    pub fn append_device(&mut self, id: u32, name: String, has_routeros: bool) -> DeviceBuilder {
-        DeviceBuilder::new(self, id, name, has_routeros)
+    pub fn append_device(&mut self, device: DeviceBuilder) -> usize {
+        self.devices.push(device);
+        self.devices.len() - 1
     }
-    pub fn append_link(&mut self) -> LinkBuilder {
-        LinkBuilder::new(self)
+    pub fn append_link(&mut self, link: Link) -> usize {
+        self.links.push(link);
+        self.links.len() - 1
     }
     pub fn append_site(&mut self, id: u32, name: String, address: String) -> usize {
         self.sites.push(Site::builder(id, name, address));
         self.sites.len() - 1
     }
-    pub fn append_location(&mut self, id: u32, name: String) -> usize {
-        self.locations.push(Location::builder(id, name));
+    pub fn append_location(&mut self, id: u32, name: String, devices: Vec<usize>) -> usize {
+        self.locations.push(Location::builder(id, name, devices));
         self.locations.len() - 1
     }
 
@@ -156,22 +159,6 @@ impl TopologyBuilder {
     }
 
     pub fn build(mut self) -> Arc<Topology> {
-        let mut links = Vec::with_capacity(self.links.len());
-        let mut link_index = HashMap::new();
-        for (link_idx, link) in self.links.into_iter().enumerate() {
-            for segment in link.path().iter() {
-                for port in segment.ports() {
-                    link_index.entry(*port).or_insert(link_idx);
-                }
-            }
-            links.push(Arc::new(link));
-        }
-        let mut devices = Vec::with_capacity(self.devices.len());
-        let mut device_index = HashMap::new();
-        for device in self.devices {
-            device_index.insert(device.id(), devices.len());
-            devices.push(Arc::new(device));
-        }
         let mut locations = Vec::with_capacity(self.locations.len());
         let mut location_index = HashMap::new();
         let mut locations_of_site: HashMap<_, HashSet<usize>> = HashMap::new();
@@ -179,7 +166,7 @@ impl TopologyBuilder {
             for (location_id, location_name) in site_builder.locations().iter().cloned() {
                 let location_idx = self.locations.len();
                 self.locations
-                    .push(Location::builder(location_id, location_name));
+                    .push(Location::builder(location_id, location_name, vec![]));
                 Self::modify_site_of_location(&mut self.locations, location_idx, site_idx);
             }
         }
@@ -204,6 +191,26 @@ impl TopologyBuilder {
             sites.push(Arc::new(Site::new(id, name, address, locations)));
             site_index.insert(id, site_idx);
         }
+        let mut devices = Vec::with_capacity(self.devices.len());
+        let mut device_index = HashMap::new();
+        let location_mapper = |id| location_index.get(&id).copied();
+        let site_mapper = |id| site_index.get(&id).copied();
+        for device_builder in self.devices {
+            let device = device_builder.build(&location_mapper, &site_mapper);
+            device_index.insert(device.id(), devices.len());
+            devices.push(Arc::new(device));
+        }
+        let mut links = Vec::with_capacity(self.links.len());
+        let mut link_index = HashMap::new();
+        for (link_idx, link) in self.links.into_iter().enumerate() {
+            for segment in link.path().iter() {
+                for port in segment.ports() {
+                    link_index.entry(*port).or_insert(link_idx);
+                }
+            }
+            links.push(Arc::new(link));
+        }
+
         Arc::new(Topology {
             devices,
             links,
@@ -215,10 +222,15 @@ impl TopologyBuilder {
             location_index,
         })
     }
+    pub fn devices(&self) -> &Vec<DeviceBuilder> {
+        &self.devices
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::topology::model::device::DeviceBuilder;
+    use crate::topology::model::link::LinkBuilder;
     use crate::topology::model::Topology;
 
     #[test]
@@ -226,7 +238,7 @@ mod tests {
         let mut topology_builder = Topology::builder();
         let mut rt01_ports = Vec::new();
         let rt01_idx = {
-            let mut device_builder = topology_builder.append_device(1, "rt01".to_string(), true);
+            let mut device_builder = DeviceBuilder::new(1, "rt01".to_string(), true);
             device_builder.append_interface(
                 1,
                 "loopback".to_string(),
@@ -243,11 +255,11 @@ mod tests {
                     false,
                 ));
             }
-            device_builder.build()
+            topology_builder.append_device(device_builder)
         };
         let mut rt02_ports = Vec::new();
         let rt02_idx = {
-            let mut device_builder = topology_builder.append_device(2, "rt02".to_string(), true);
+            let mut device_builder = DeviceBuilder::new(2, "rt02".to_string(), true);
             device_builder.append_interface(
                 10,
                 "loopback".to_string(),
@@ -264,14 +276,20 @@ mod tests {
                     false,
                 ));
             }
-
-            device_builder.build()
+            topology_builder.append_device(device_builder)
         };
-        let mut link_builder = topology_builder.append_link();
+
+        let mut link_builder = LinkBuilder::new();
         link_builder
-            .append_segment(rt01_idx, rt01_ports[0], rt02_idx, rt02_ports[0])
+            .append_segment(
+                topology_builder.devices(),
+                rt01_idx,
+                rt01_ports[0],
+                rt02_idx,
+                rt02_ports[0],
+            )
             .unwrap();
-        link_builder.build();
+        topology_builder.append_link(link_builder.build());
 
         let topology = topology_builder.build();
 

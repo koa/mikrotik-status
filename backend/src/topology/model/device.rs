@@ -5,7 +5,8 @@ use std::sync::Arc;
 use ipnet::{Ipv4Net, Ipv6Net};
 
 use crate::topology::model::link::LinkPortRef;
-use crate::topology::model::{Topology, TopologyBuilder};
+use crate::topology::model::location::LocationRef;
+use crate::topology::model::Topology;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Device {
@@ -13,6 +14,8 @@ pub struct Device {
     id: u32,
     ports: Vec<Arc<DevicePort>>,
     has_routeros: bool,
+    location: Option<usize>,
+    site: Option<usize>,
 }
 
 impl Device {
@@ -30,15 +33,16 @@ impl Device {
     }
 }
 
-pub struct DeviceBuilder<'a> {
-    topo_builder: &'a mut TopologyBuilder,
+pub struct DeviceBuilder {
     id: u32,
     name: String,
     ports: Vec<DevicePort>,
     has_routeros: bool,
+    site_id: Option<u32>,
+    location_id: Option<u32>,
 }
 
-impl<'a> DeviceBuilder<'a> {
+impl DeviceBuilder {
     pub fn append_interface(
         &mut self,
         id: u32,
@@ -74,29 +78,39 @@ impl<'a> DeviceBuilder<'a> {
         self.ports.push(port);
         self.ports.len() - 1
     }
-    pub(crate) fn build(self) -> usize {
-        let device = Device {
+    pub fn set_location(&mut self, id: u32) {
+        self.location_id = Some(id);
+    }
+    pub fn set_site(&mut self, id: u32) {
+        self.location_id = Some(id);
+    }
+
+    pub(crate) fn build<LM, SM>(self, location_mapper: &LM, site_mapper: &SM) -> Device
+    where
+        LM: Fn(u32) -> Option<usize>,
+        SM: Fn(u32) -> Option<usize>,
+    {
+        Device {
             id: self.id,
             name: self.name,
             ports: self.ports.into_iter().map(Arc::new).collect(),
             has_routeros: self.has_routeros,
-        };
-        self.topo_builder.devices.push(device);
-        self.topo_builder.devices.len() - 1
+            location: self.location_id.and_then(|id| location_mapper(id)),
+            site: self.site_id.and_then(|id| site_mapper(id)),
+        }
     }
-    pub fn new(
-        topo_builder: &'a mut TopologyBuilder,
-        id: u32,
-        name: String,
-        has_routeros: bool,
-    ) -> Self {
+    pub fn new(id: u32, name: String, has_routeros: bool) -> Self {
         Self {
-            topo_builder,
             id,
             name,
             ports: vec![],
             has_routeros,
+            site_id: None,
+            location_id: None,
         }
+    }
+    pub fn ports(&self) -> &Vec<DevicePort> {
+        &self.ports
     }
 }
 
@@ -160,11 +174,11 @@ pub struct DeviceRef {
 }
 
 impl DeviceRef {
-    pub(crate) fn has_routeros(&self) -> bool {
+    pub fn has_routeros(&self) -> bool {
         self.device.has_routeros
     }
 
-    pub(crate) fn get_loopback_address(&self) -> Option<IpAddr> {
+    pub fn get_loopback_address(&self) -> Option<IpAddr> {
         self.device
             .ports
             .iter()
@@ -185,7 +199,7 @@ impl DeviceRef {
             .next()
     }
 
-    pub(crate) fn get_id(&self) -> u32 {
+    pub fn get_id(&self) -> u32 {
         self.device.id
     }
     pub fn get_name(&self) -> &str {
@@ -204,6 +218,11 @@ impl DeviceRef {
                 })
             })
             .collect()
+    }
+    pub fn location(&self) -> Option<LocationRef> {
+        self.device
+            .location
+            .and_then(|location_idx| self.topology.get_location(location_idx))
     }
     pub fn new(topology: Arc<Topology>, device: Arc<Device>, device_idx: usize) -> Self {
         Self {

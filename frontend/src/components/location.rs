@@ -7,7 +7,9 @@ use patternfly_yew::Spinner;
 use web_sys::MouseEvent;
 use yew::platform::spawn_local;
 use yew::{html, Callback, Component, Context, Html, Properties};
+use yew_nested_router::prelude::RouterContext;
 
+use crate::app::route::AppRoute;
 use crate::components::context::{ApiContext, LocationDetails};
 
 pub struct LocationCard {
@@ -43,9 +45,17 @@ impl Component for LocationCard {
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            LocationMsg::CardClicked => false,
+            LocationMsg::CardClicked => {
+                let navigator = ctx
+                    .link()
+                    .context::<RouterContext<AppRoute>>(Default::default())
+                    .expect("Cannot be used outside of a router")
+                    .0;
+                navigator.push(AppRoute::location(self.id));
+                false
+            }
             LocationMsg::Loaded(data) => {
                 self.data = DataState::Data(data);
                 true
