@@ -14,7 +14,7 @@ env_logger = "0.10.0"
 log = "0.4"
 prometheus = "0.13.3"
 actix-web-prometheus = { version = "0.1.2", features = ["process"] }
-thiserror = "1.0.37"
+thiserror = "1.0.38"
 actix-4-jwt-auth = "0.6.0"
 biscuit = "0.6.0-beta1"
 serde = "1.0.147"

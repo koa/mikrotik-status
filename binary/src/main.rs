@@ -1,23 +1,32 @@
 use std::collections::HashMap;
+use std::process::ExitCode;
 
 use actix_4_jwt_auth::{AuthenticatedUser, OIDCValidator, OIDCValidatorConfig};
-use actix_web::guard::Post;
-use actix_web::web::{resource, Data};
-use actix_web::{get, App, HttpServer};
+use actix_web::{
+    get,
+    guard::Post,
+    web::{resource, Data},
+    App, HttpServer,
+};
 use actix_web_prometheus::PrometheusMetricsBuilder;
 use actix_web_static_files::ResourceFiles;
 use async_graphql::futures_util::future::join_all;
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
 use biscuit::ValidationOptions;
 use env_logger::Env;
+use log::error;
 use prometheus::{histogram_opts, HistogramVec};
 use static_files::Resource;
 
-use backend::api::{create_schema, GraphqlSchema};
-use backend::config::config;
-use backend::context::UserInfo;
+use backend::{
+    api::{create_schema, GraphqlSchema},
+    config::config,
+    context::UserInfo,
+};
 
-use crate::error::BinaryError;
+use crate::error::{BinaryError, Result};
+
+mod error;
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
@@ -59,20 +68,18 @@ struct ApplicationContext {
     schema: GraphqlSchema,
 }
 
-mod error;
-
 #[actix_web::main]
-async fn main() -> Result<(), BinaryError> {
+async fn main() -> ExitCode {
     env_logger::init_from_env(Env::default().filter_or("LOG_LEVEL", "info"));
-    run_server().await
-    /*
-    let result: Result<(), BinaryError> =
-    if let Err(error) = result {
-        error!("Cannot start server: {error:?}");
-    }*/
+    if let Err(error) = run_server().await {
+        error!("Error running server: {error}");
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    }
 }
 
-async fn run_server() -> Result<(), BinaryError> {
+async fn run_server() -> Result<()> {
     let config = config();
 
     let bind_addr = *config.server_bind_address();
@@ -101,7 +108,7 @@ async fn run_server() -> Result<(), BinaryError> {
     let issuer = config.auth_issuer();
     let created_validator = OIDCValidator::new_from_issuer(issuer.to_owned(), validation_options)
         .await
-        .unwrap();
+        .map_err(|e| BinaryError::oidc_validation_error(issuer.to_string(), e))?;
 
     let validator_config = OIDCValidatorConfig {
         issuer: issuer.to_string(),
