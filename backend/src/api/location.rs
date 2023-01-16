@@ -1,4 +1,5 @@
 use async_graphql::Object;
+use std::sync::Arc;
 
 use crate::api::device::Device;
 use crate::api::site::Site;
@@ -53,6 +54,11 @@ impl Location {
     }
     /// devices on that location
     async fn devices(&self) -> Vec<Device> {
-        self.0.devices().into_iter().map(Device::new).collect()
+        self.0
+            .devices()
+            .into_iter()
+            .map(Arc::new)
+            .map(Device::new)
+            .collect()
     }
 }

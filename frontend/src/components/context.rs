@@ -13,7 +13,9 @@ use yew::{
 };
 use yew_oauth2::prelude::OAuth2Context;
 
-use crate::graphql::devices::get_device_details::GetDeviceDetailsDevice;
+use crate::graphql::devices::get_device_details::{
+    GetDeviceDetailsDevice, GetDeviceDetailsDeviceDeviceType,
+};
 use crate::graphql::devices::{get_device_details, GetDeviceDetails};
 use crate::graphql::locations::get_location_details::GetLocationDetailsLocation;
 use crate::graphql::locations::{get_location_details, GetLocationDetails};
@@ -28,6 +30,7 @@ use crate::{
 #[derive(Clone, Debug, Default)]
 pub struct DeviceDetails {
     name: String,
+    model_name: Option<String>,
     has_routeros: bool,
 }
 
@@ -35,8 +38,12 @@ impl DeviceDetails {
     pub fn name(&self) -> &str {
         &self.name
     }
+
     pub fn has_routeros(&self) -> bool {
         self.has_routeros
+    }
+    pub fn model_name(&self) -> Option<&str> {
+        self.model_name.as_ref().map(String::as_str)
     }
 }
 
@@ -234,11 +241,17 @@ impl ApiContext {
                          id,
                          name,
                          location,
-                         has_routeros,
+                         device_type,
                      }| {
+                        let (has_routeros, model_name) = device_type
+                            .map(|GetDeviceDetailsDeviceDeviceType { has_routeros, name }| {
+                                (has_routeros, Some(name))
+                            })
+                            .unwrap_or((false, None));
                         Ok::<DeviceDetails, FrontendError>(DeviceDetails {
                             name,
-                            has_routeros: has_routeros,
+                            model_name,
+                            has_routeros,
                         })
                     },
                 )

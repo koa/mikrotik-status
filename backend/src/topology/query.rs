@@ -16,6 +16,7 @@ use crate::error::{BackendError, GraphqlError};
 use crate::topology::graphql_operations::fetch_topology::IpamIPAddressRoleChoices;
 use crate::topology::graphql_operations::FetchTopology;
 use crate::topology::model::device::DeviceBuilder;
+use crate::topology::model::device_type::DeviceType;
 use crate::topology::model::Topology;
 
 enum PortType {
@@ -47,35 +48,42 @@ impl FromStr for PortType {
 
 #[cached(result, time = 30, time_refresh)]
 pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
-    let netbox_topology = query_netbox::<FetchTopology>(Default::default()).await?;
-    let routeros_device_types: HashSet<_> = netbox_topology
-        .device_type_list
-        .iter()
-        .flatten()
-        .filter(|type_entry| {
-            type_entry
-                .tags
-                .iter()
-                .flatten()
-                .flatten()
-                .any(|option_tag| option_tag.slug == "routeros")
-        })
-        .map(|t| t.id.as_str())
-        .collect();
     let mut topo_builder = Topology::builder();
     let mut device_id_map = HashMap::new();
     let mut device_interface_map = HashMap::new();
     let mut device_front_map = HashMap::new();
     let mut device_rear_map = HashMap::new();
     let mut devices_of_location: HashMap<_, Vec<_>> = HashMap::new();
+
+    let netbox_topology = query_netbox::<FetchTopology>(Default::default()).await?;
+    let mut routeros_device_types = HashSet::new();
+    let flatten = netbox_topology.device_type_list.into_iter().flatten();
+    for type_entry in flatten {
+        let has_routeros = type_entry
+            .tags
+            .iter()
+            .flatten()
+            .flatten()
+            .any(|option_tag| option_tag.slug == "routeros");
+        let id = type_entry.id.parse()?;
+        let name = type_entry.model;
+        topo_builder.append_device_type(DeviceType::new(name, id, has_routeros));
+        if has_routeros {
+            routeros_device_types.insert(id);
+        }
+    }
+
     for device_entry in netbox_topology.device_list.into_iter().flatten() {
-        let has_routeros = routeros_device_types.contains(device_entry.device_type.id.as_str());
+        let device_type_id = device_entry.device_type.id.parse()?;
+        let has_routeros = routeros_device_types.contains(&device_type_id);
 
         let mut device_builder = DeviceBuilder::new(
             device_entry.id.parse()?,
             device_entry.name.clone().unwrap_or_default(),
             has_routeros,
         );
+        device_builder.set_device_type(device_type_id);
+
         let mut if_idx = Vec::with_capacity(device_entry.interfaces.len());
         for if_port in device_entry.interfaces {
             let id: u32 = if_port.id.parse()?;
@@ -151,7 +159,7 @@ pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
         }
     }
 
-    Ok(topo_builder.build())
+    topo_builder.build()
 }
 
 pub async fn query_netbox<Q>(request: Q::Variables) -> Result<Q::ResponseData, BackendError>

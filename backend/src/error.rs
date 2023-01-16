@@ -48,6 +48,8 @@ pub enum BackendError {
     Umbrella(Vec<BackendError>),
     #[error("No ip address found")]
     MissingIpAddress(),
+    #[error("No valid device type found")]
+    MissingDeviceType(),
     #[error("Error from Netbox: {error}")]
     NetboxError {
         error: NetboxError,

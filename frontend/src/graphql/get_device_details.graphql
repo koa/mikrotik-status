@@ -2,9 +2,12 @@ query GetDeviceDetails($id: Int!){
     device(id: $id){
         id
         name
-        hasRouteros
         location{
             id
+        }
+        deviceType {
+            name
+            hasRouteros
         }
     }
 }

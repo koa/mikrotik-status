@@ -8,10 +8,13 @@ use device::{Device, DeviceRef, PortIdx};
 use link::Link;
 use site::{Site, SiteBuilder, SiteRef};
 
+use crate::error::Result;
 use crate::topology::model::device::DeviceBuilder;
+use crate::topology::model::device_type::{DeviceType, DeviceTypRef};
 use crate::topology::model::location::{Location, LocationBuilder, LocationRef};
 
 pub mod device;
+pub mod device_type;
 pub mod link;
 pub mod location;
 pub mod site;
@@ -31,6 +34,7 @@ pub enum TopologyError {
 
 #[derive(Debug)]
 pub struct Topology {
+    device_types: Vec<Arc<DeviceType>>,
     devices: Vec<Arc<Device>>,
     links: Vec<Arc<Link>>,
     sites: Vec<Arc<Site>>,
@@ -49,6 +53,11 @@ impl Topology {
         self.devices
             .get(idx)
             .map(|found| DeviceRef::new(self.clone(), found.clone(), idx))
+    }
+    pub fn get_device_type(self: &Arc<Self>, idx: usize) -> Option<DeviceTypRef> {
+        self.device_types
+            .get(idx)
+            .map(|found| DeviceTypRef::new(self.clone(), found.clone(), idx))
     }
     pub fn get_device_by_id(self: &Arc<Self>, key: u32) -> Option<DeviceRef> {
         self.get_device(*self.device_index.get(&key)?)
@@ -118,6 +127,7 @@ impl Topology {
 
 #[derive(Default)]
 pub struct TopologyBuilder {
+    device_types: Vec<DeviceType>,
     devices: Vec<DeviceBuilder>,
     links: Vec<Link>,
     sites: Vec<SiteBuilder>,
@@ -125,6 +135,10 @@ pub struct TopologyBuilder {
 }
 
 impl TopologyBuilder {
+    pub fn append_device_type(&mut self, device_type: DeviceType) -> usize {
+        self.device_types.push(device_type);
+        self.device_types.len() - 1
+    }
     pub fn append_device(&mut self, device: DeviceBuilder) -> usize {
         self.devices.push(device);
         self.devices.len() - 1
@@ -158,7 +172,14 @@ impl TopologyBuilder {
         }
     }
 
-    pub fn build(mut self) -> Arc<Topology> {
+    pub fn build(mut self) -> Result<Arc<Topology>> {
+        let mut device_types = Vec::with_capacity(self.device_types.len());
+        let mut device_type_index = HashMap::new();
+        for (idx, device_type) in self.device_types.into_iter().enumerate() {
+            device_type_index.insert(device_type.id(), idx);
+            device_types.push(Arc::new(device_type));
+        }
+
         let mut locations = Vec::with_capacity(self.locations.len());
         let mut location_index = HashMap::new();
         let mut locations_of_site: HashMap<_, HashSet<usize>> = HashMap::new();
@@ -195,8 +216,9 @@ impl TopologyBuilder {
         let mut device_index = HashMap::new();
         let location_mapper = |id| location_index.get(&id).copied();
         let site_mapper = |id| site_index.get(&id).copied();
+        let type_mapper = |id| device_type_index.get(&id).copied();
         for device_builder in self.devices {
-            let device = device_builder.build(&location_mapper, &site_mapper);
+            let device = device_builder.build(&location_mapper, &site_mapper, &type_mapper)?;
             device_index.insert(device.id(), devices.len());
             devices.push(Arc::new(device));
         }
@@ -211,7 +233,8 @@ impl TopologyBuilder {
             links.push(Arc::new(link));
         }
 
-        Arc::new(Topology {
+        Ok(Arc::new(Topology {
+            device_types,
             devices,
             links,
             sites,
@@ -220,7 +243,7 @@ impl TopologyBuilder {
             device_index,
             site_index,
             location_index,
-        })
+        }))
     }
     pub fn devices(&self) -> &Vec<DeviceBuilder> {
         &self.devices

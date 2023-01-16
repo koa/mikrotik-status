@@ -108,6 +108,7 @@ impl Component for DeviceComponent {
 
                 html! {
                     <Card {title}>
+                        {data.model_name().unwrap_or_default()}
                         {ping_result}
                     </Card>
                 }

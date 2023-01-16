@@ -2,8 +2,11 @@ use std::net::IpAddr;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use ipnet::{Ipv4Net, Ipv6Net};
+use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 
+use crate::error::BackendError;
+use crate::error::Result;
+use crate::topology::model::device_type::DeviceTypRef;
 use crate::topology::model::link::LinkPortRef;
 use crate::topology::model::location::LocationRef;
 use crate::topology::model::Topology;
@@ -16,6 +19,8 @@ pub struct Device {
     has_routeros: bool,
     location: Option<usize>,
     site: Option<usize>,
+    device_type: usize,
+    device_category: DeviceCategory,
 }
 
 impl Device {
@@ -40,9 +45,15 @@ pub struct DeviceBuilder {
     has_routeros: bool,
     site_id: Option<u32>,
     location_id: Option<u32>,
+    device_type: Option<u32>,
+    device_category: Option<DeviceCategory>,
 }
 
 impl DeviceBuilder {
+    pub(crate) fn set_device_type(&mut self, device_type_id: u32) {
+        self.device_type = Some(device_type_id);
+    }
+
     pub fn append_interface(
         &mut self,
         id: u32,
@@ -78,26 +89,41 @@ impl DeviceBuilder {
         self.ports.push(port);
         self.ports.len() - 1
     }
+
     pub fn set_location(&mut self, id: u32) {
         self.location_id = Some(id);
     }
     pub fn set_site(&mut self, id: u32) {
         self.location_id = Some(id);
     }
+    pub fn set_category(&mut self, category: DeviceCategory) {
+        self.device_category = Some(category);
+    }
 
-    pub(crate) fn build<LM, SM>(self, location_mapper: &LM, site_mapper: &SM) -> Device
+    pub(crate) fn build<LM, SM, TM>(
+        self,
+        location_mapper: &LM,
+        site_mapper: &SM,
+        type_mapper: &TM,
+    ) -> Result<Device>
     where
         LM: Fn(u32) -> Option<usize>,
         SM: Fn(u32) -> Option<usize>,
+        TM: Fn(u32) -> Option<usize>,
     {
-        Device {
+        Ok(Device {
             id: self.id,
             name: self.name,
             ports: self.ports.into_iter().map(Arc::new).collect(),
             has_routeros: self.has_routeros,
-            location: self.location_id.and_then(|id| location_mapper(id)),
-            site: self.site_id.and_then(|id| site_mapper(id)),
-        }
+            location: self.location_id.and_then(location_mapper),
+            site: self.site_id.and_then(site_mapper),
+            device_type: self
+                .device_type
+                .and_then(type_mapper)
+                .ok_or(BackendError::MissingDeviceType())?,
+            device_category: self.device_category.unwrap_or_default(),
+        })
     }
     pub fn new(id: u32, name: String, has_routeros: bool) -> Self {
         Self {
@@ -107,6 +133,8 @@ impl DeviceBuilder {
             has_routeros,
             site_id: None,
             location_id: None,
+            device_type: None,
+            device_category: None,
         }
     }
     pub fn ports(&self) -> &Vec<DevicePort> {
@@ -140,6 +168,25 @@ impl DevicePort {
             DevicePort::Interface { name, .. } => name,
             DevicePort::FrontPort { name, .. } => name,
             DevicePort::RearPort { name, .. } => name,
+        }
+    }
+    pub fn list_nets(&self) -> Vec<IpNet> {
+        match self {
+            DevicePort::Interface {
+                v4_address,
+                v6_address,
+                ..
+            } => v4_address
+                .map(IpNet::V4)
+                .into_iter()
+                .chain(v6_address.map(IpNet::V6).into_iter())
+                .collect(),
+            DevicePort::FrontPort { .. } => {
+                vec![]
+            }
+            DevicePort::RearPort { .. } => {
+                vec![]
+            }
         }
     }
 }
@@ -210,19 +257,21 @@ impl DeviceRef {
             .ports
             .iter()
             .enumerate()
-            .map(|(idx, port)| {
-                Arc::new(DevicePortRef {
-                    device: self.clone(),
-                    port: port.clone(),
-                    idx,
-                })
+            .map(|(idx, port)| DevicePortRef {
+                device: self.clone(),
+                port: port.clone(),
+                idx,
             })
+            .map(Arc::new)
             .collect()
     }
     pub fn location(&self) -> Option<LocationRef> {
         self.device
             .location
             .and_then(|location_idx| self.topology.get_location(location_idx))
+    }
+    pub fn device_type(&self) -> Option<DeviceTypRef> {
+        self.topology.get_device_type(self.device.device_type)
     }
     pub fn new(topology: Arc<Topology>, device: Arc<Device>, device_idx: usize) -> Self {
         Self {
@@ -233,6 +282,7 @@ impl DeviceRef {
     }
 }
 
+#[derive(Debug)]
 pub struct DevicePortRef {
     device: Arc<DeviceRef>,
     port: Arc<DevicePort>,
@@ -278,9 +328,43 @@ impl DevicePortRef {
     pub fn get_device(self: &Arc<Self>) -> Arc<DeviceRef> {
         self.device.clone()
     }
+    pub fn get_ips(&self) -> Vec<IpNet> {
+        self.port.list_nets()
+    }
 }
 
 pub enum PortSide {
     Left,
     Right,
+}
+
+#[derive(Clone, Hash, Eq, PartialEq, Debug, Copy)]
+pub enum DeviceCategory {
+    Switch,
+    Router,
+    UserDevice,
+    PatchPanel,
+    Server,
+    WallConnector,
+    Unknown,
+}
+
+impl Default for DeviceCategory {
+    fn default() -> Self {
+        DeviceCategory::Unknown
+    }
+}
+
+impl DeviceCategory {
+    pub fn can_ping(&self) -> bool {
+        match self {
+            DeviceCategory::Switch => true,
+            DeviceCategory::Router => true,
+            DeviceCategory::UserDevice => true,
+            DeviceCategory::PatchPanel => false,
+            DeviceCategory::Server => true,
+            DeviceCategory::WallConnector => false,
+            DeviceCategory::Unknown => false,
+        }
+    }
 }
