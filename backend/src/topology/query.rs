@@ -7,7 +7,7 @@ use std::sync::Arc;
 use cached::proc_macro::cached;
 use graphql_client::{GraphQLQuery, Response};
 use ipnet::IpNet;
-use log::debug;
+use log::{debug, info, warn};
 use reqwest::header::AUTHORIZATION;
 use thiserror::Error;
 
@@ -48,6 +48,18 @@ impl FromStr for PortType {
 
 #[cached(result, time = 30, time_refresh)]
 pub async fn get_topology() -> Result<Arc<Topology>, BackendError> {
+    let result = do_fetch_topology().await;
+    match result.as_ref() {
+        Ok(_) => {
+            info!("Fetched topology successful");
+        }
+        Err(error) => {
+            warn!("Error fetching topology {error}");
+        }
+    }
+    return result;
+}
+async fn do_fetch_topology() -> Result<Arc<Topology>, BackendError> {
     let mut topo_builder = Topology::builder();
     let mut device_id_map = HashMap::new();
     let mut device_interface_map = HashMap::new();

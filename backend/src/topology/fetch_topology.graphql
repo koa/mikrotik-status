@@ -68,11 +68,8 @@ query FetchTopology{
         length
         length_unit
         terminations {
-            termination_id
-            termination_type {
-                id
-                model
-            }
+            id
+            class_type
         }
     }
 }
