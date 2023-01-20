@@ -1,8 +1,3 @@
-use std::sync::Arc;
-
-use crate::topology::model::device::DeviceRef;
-use crate::topology::model::Topology;
-
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Location {
     id: u32,
@@ -16,12 +11,6 @@ pub struct LocationBuilder {
     name: String,
     site: Option<usize>,
     devices: Vec<usize>,
-}
-
-#[derive(Clone, Debug)]
-pub struct LocationRef {
-    topology: Arc<Topology>,
-    location: Arc<Location>,
 }
 
 impl LocationBuilder {
@@ -60,28 +49,8 @@ impl Location {
     pub fn site(&self) -> Option<usize> {
         self.site
     }
-}
 
-impl LocationRef {
-    pub fn new(topology: Arc<Topology>, location: Arc<Location>) -> Self {
-        Self { topology, location }
-    }
-    pub fn id(&self) -> u32 {
-        self.location.id
-    }
-    pub fn name(&self) -> &str {
-        &self.location.name
-    }
-    pub fn site_id(&self) -> Option<usize> {
-        self.location.site
-    }
-
-    pub fn devices(&self) -> Vec<DeviceRef> {
-        self.location
-            .devices
-            .iter()
-            .cloned()
-            .filter_map(|idx| self.topology.get_device(idx))
-            .collect()
+    pub fn devices(&self) -> &Vec<usize> {
+        &self.devices
     }
 }

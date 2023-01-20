@@ -1,8 +1,4 @@
 use std::collections::HashSet;
-use std::sync::Arc;
-
-use crate::topology::model::location::LocationRef;
-use crate::topology::model::Topology;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Site {
@@ -71,37 +67,5 @@ impl SiteBuilder {
     }
     pub fn locations(&self) -> &Vec<(u32, String)> {
         &self.locations
-    }
-}
-
-#[derive(Debug)]
-pub struct SiteRef {
-    topology: Arc<Topology>,
-    site: Arc<Site>,
-}
-
-impl SiteRef {
-    pub fn new(topology: Arc<Topology>, site: Arc<Site>) -> Self {
-        Self { topology, site }
-    }
-    pub(crate) fn get_id(&self) -> u32 {
-        self.site.id
-    }
-    pub fn get_name(&self) -> &str {
-        &self.site.name
-    }
-    pub fn get_address(&self) -> &str {
-        &self.site.address
-    }
-    pub fn locations(&self) -> Vec<LocationRef> {
-        self.site
-            .locations
-            .iter()
-            .filter_map(|location| self.topology.get_location(*location))
-            .collect()
-    }
-    pub fn location(&self, id: usize) -> Option<LocationRef> {
-        let location = self.site.locations.get(id)?;
-        self.topology.get_location(*location)
     }
 }

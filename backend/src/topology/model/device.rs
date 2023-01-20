@@ -6,10 +6,6 @@ use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 
 use crate::error::BackendError;
 use crate::error::Result;
-use crate::topology::model::device_type::DeviceTypRef;
-use crate::topology::model::link::LinkPortRef;
-use crate::topology::model::location::LocationRef;
-use crate::topology::model::Topology;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Device {
@@ -30,11 +26,38 @@ impl Device {
     pub fn id(&self) -> u32 {
         self.id
     }
-    pub fn ports(&self) -> &Vec<Arc<DevicePort>> {
-        &self.ports
-    }
     pub fn has_routeros(&self) -> bool {
         self.has_routeros
+    }
+
+    pub fn get_loopback_address(&self) -> Option<IpAddr> {
+        self.ports
+            .iter()
+            .flat_map(|p| match p.deref() {
+                DevicePort::Interface {
+                    id: _,
+                    name: _,
+                    v4_address,
+                    v6_address,
+                    loopback: true,
+                } => v6_address
+                    .iter()
+                    .map(|a| IpAddr::V6(a.addr()))
+                    .chain(v4_address.iter().map(|a| IpAddr::V4(a.addr())))
+                    .next(),
+                _ => None,
+            })
+            .next()
+    }
+
+    pub fn ports(self: &Arc<Self>) -> Vec<Arc<DevicePort>> {
+        self.ports.iter().cloned().collect()
+    }
+    pub fn location(&self) -> Option<usize> {
+        self.location
+    }
+    pub fn device_type(&self) -> usize {
+        self.device_type
     }
 }
 
@@ -210,126 +233,6 @@ impl PortIdx {
     }
     pub fn port_idx(&self) -> usize {
         self.port_idx
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct DeviceRef {
-    topology: Arc<Topology>,
-    device: Arc<Device>,
-    device_idx: usize,
-}
-
-impl DeviceRef {
-    pub fn has_routeros(&self) -> bool {
-        self.device.has_routeros
-    }
-
-    pub fn get_loopback_address(&self) -> Option<IpAddr> {
-        self.device
-            .ports
-            .iter()
-            .flat_map(|p| match p.deref() {
-                DevicePort::Interface {
-                    id: _,
-                    name: _,
-                    v4_address,
-                    v6_address,
-                    loopback: true,
-                } => v6_address
-                    .iter()
-                    .map(|a| IpAddr::V6(a.addr()))
-                    .chain(v4_address.iter().map(|a| IpAddr::V4(a.addr())))
-                    .next(),
-                _ => None,
-            })
-            .next()
-    }
-
-    pub fn get_id(&self) -> u32 {
-        self.device.id
-    }
-    pub fn get_name(&self) -> &str {
-        &self.device.name
-    }
-    pub fn get_ports(self: &Arc<Self>) -> Vec<Arc<DevicePortRef>> {
-        self.device
-            .ports
-            .iter()
-            .enumerate()
-            .map(|(idx, port)| DevicePortRef {
-                device: self.clone(),
-                port: port.clone(),
-                idx,
-            })
-            .map(Arc::new)
-            .collect()
-    }
-    pub fn location(&self) -> Option<LocationRef> {
-        self.device
-            .location
-            .and_then(|location_idx| self.topology.get_location(location_idx))
-    }
-    pub fn device_type(&self) -> Option<DeviceTypRef> {
-        self.topology.get_device_type(self.device.device_type)
-    }
-    pub fn new(topology: Arc<Topology>, device: Arc<Device>, device_idx: usize) -> Self {
-        Self {
-            topology,
-            device,
-            device_idx,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct DevicePortRef {
-    device: Arc<DeviceRef>,
-    port: Arc<DevicePort>,
-    idx: usize,
-}
-
-impl DevicePortRef {
-    pub fn get_name<'a>(self: &'a Arc<Self>) -> &'a str {
-        self.port.get_name()
-    }
-    pub fn get_links(self: &Arc<Self>) -> Option<Arc<LinkPortRef>> {
-        let device_idx = self.device.device_idx;
-        let port_idx = self.idx;
-        let port_idx = PortIdx {
-            device_idx,
-            port_idx,
-        };
-        self.device
-            .topology
-            .link_index
-            .get(&port_idx)
-            .iter()
-            .flat_map(|link_idx| self.device.topology.links.get(**link_idx).cloned())
-            .map(|link| {
-                let mut hit_idx = Vec::with_capacity(2);
-                for (idx, segment) in link.path().iter().enumerate() {
-                    if segment.right_port() == port_idx {
-                        hit_idx.push((PortSide::Left, idx));
-                    }
-                    if segment.left_port() == port_idx {
-                        hit_idx.push((PortSide::Right, idx));
-                    }
-                }
-                hit_idx.shrink_to_fit();
-                Arc::new(LinkPortRef::new(
-                    self.device.topology.clone(),
-                    link,
-                    hit_idx,
-                ))
-            })
-            .next()
-    }
-    pub fn get_device(self: &Arc<Self>) -> Arc<DeviceRef> {
-        self.device.clone()
-    }
-    pub fn get_ips(&self) -> Vec<IpNet> {
-        self.port.list_nets()
     }
 }
 

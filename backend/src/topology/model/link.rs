@@ -1,7 +1,5 @@
-use std::sync::Arc;
-
-use crate::topology::model::device::{DeviceBuilder, PortIdx, PortSide};
-use crate::topology::model::{Topology, TopologyError};
+use crate::topology::model::device::{DeviceBuilder, PortIdx};
+use crate::topology::model::TopologyError;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Link {
@@ -84,31 +82,5 @@ impl LinkSegment {
     }
     pub fn right_port(&self) -> PortIdx {
         self.right_port
-    }
-}
-
-pub struct LinkPortRef {
-    topology: Arc<Topology>,
-    link: Arc<Link>,
-    hit_idx: Vec<(PortSide, usize)>,
-}
-
-impl LinkPortRef {
-    pub fn new(topology: Arc<Topology>, link: Arc<Link>, hit_idx: Vec<(PortSide, usize)>) -> Self {
-        Self {
-            topology,
-            link,
-            hit_idx,
-        }
-    }
-
-    pub fn topology(&self) -> &Arc<Topology> {
-        &self.topology
-    }
-    pub fn link(&self) -> &Arc<Link> {
-        &self.link
-    }
-    pub fn hit_idx(&self) -> &Vec<(PortSide, usize)> {
-        &self.hit_idx
     }
 }

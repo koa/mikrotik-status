@@ -8,19 +8,18 @@ use log::warn;
 
 use crate::api::device_type::DeviceType;
 use crate::api::location::Location;
-use crate::{
-    error::BackendError,
-    topology::{
-        model::device::{DevicePortRef, DeviceRef},
-        query::get_topology,
-    },
-};
+use crate::topology::model;
+use crate::topology::model::Topology;
+use crate::{error::BackendError, topology::query::get_topology};
 
 #[derive(Debug)]
-pub struct Device(Arc<DeviceRef>);
+pub struct Device {
+    device: Arc<model::Device>,
+    topology: Arc<Topology>,
+}
 
 #[derive(Debug)]
-pub struct DevicePort(Arc<DevicePortRef>);
+pub struct DevicePort(Arc<model::DevicePort>);
 
 #[derive(Debug)]
 pub struct IpNetApi(IpNet);
@@ -32,18 +31,13 @@ impl IpNetApi {
 }
 
 impl Device {
-    pub fn new(d: Arc<DeviceRef>) -> Self {
-        Device(d)
+    pub fn new(device: Arc<model::Device>, topology: Arc<Topology>) -> Self {
+        Device { device, topology }
     }
 }
 
-impl From<Arc<DeviceRef>> for Device {
-    fn from(d: Arc<DeviceRef>) -> Self {
-        Device(d)
-    }
-}
-impl From<Arc<DevicePortRef>> for DevicePort {
-    fn from(value: Arc<DevicePortRef>) -> Self {
+impl From<Arc<model::DevicePort>> for DevicePort {
+    fn from(value: Arc<model::DevicePort>) -> Self {
         DevicePort(value)
     }
 }
@@ -59,14 +53,14 @@ pub struct PingAnswer {
 #[Object]
 impl Device {
     async fn id(&self) -> u32 {
-        self.0.get_id()
+        self.device.id()
     }
     async fn name(&self) -> &str {
-        self.0.get_name()
+        self.device.name()
     }
     async fn ping(&self) -> Result<PingResult, BackendError> {
         let ip_addr: IpAddr = self
-            .0
+            .device
             .get_loopback_address()
             .ok_or(BackendError::MissingIpAddress())?;
 
@@ -86,21 +80,22 @@ impl Device {
         })
     }
     async fn location(&self) -> Option<Location> {
-        self.0.location().map(Location::new)
+        self.device
+            .location()
+            .and_then(|id| self.topology.get_location(id))
+            .map(|l| Location::new(l, self.topology.clone()))
     }
-    /*
-    async fn has_routeros(&self) -> bool {
-        self.0.has_routeros()
-    }
-     */
 
     async fn device_type(&self) -> Option<DeviceType> {
-        self.0.device_type().map(DeviceType::new)
+        let type_idx = self.device.device_type();
+        self.topology
+            .get_device_type(type_idx)
+            .map(|tid| DeviceType::new(tid, self.topology.clone()))
     }
 
     async fn ports(&self) -> Vec<DevicePort> {
-        self.0
-            .get_ports()
+        self.device
+            .ports()
             .into_iter()
             .map(DevicePort::from)
             .collect()
@@ -114,7 +109,7 @@ impl DevicePort {
     }
     async fn address(&self, address_type: Option<IpFamily>) -> Vec<IpNetApi> {
         self.0
-            .get_ips()
+            .list_nets()
             .into_iter()
             .map(IpNetApi::new)
             .filter(|net| {
@@ -128,14 +123,16 @@ impl DevicePort {
 
 pub async fn get_device(id: u32) -> Result<Option<Device>, BackendError> {
     let topology = get_topology().await?;
-    Ok(topology.get_device_by_id(id).map(Arc::new).map(Device::new))
+    Ok(topology
+        .get_device_by_id(id)
+        .map(|d| Device::new(d, topology)))
 }
 
 pub async fn list_devices() -> Result<Vec<Device>, BackendError> {
     let topology = get_topology().await?;
     let results = topology.list_devices_map(|d| {
         if d.has_routeros() {
-            Some(Device::new(Arc::new(d)))
+            Some(Device::new(d.clone(), topology.clone()))
         } else {
             None
         }

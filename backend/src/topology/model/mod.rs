@@ -4,14 +4,16 @@ use std::sync::Arc;
 use log::warn;
 use thiserror::Error;
 
-use device::{Device, DeviceRef, PortIdx};
+pub use device::{Device, DevicePort, PortIdx};
 use link::Link;
-use site::{Site, SiteBuilder, SiteRef};
+pub use site::Site;
+use site::SiteBuilder;
 
 use crate::error::Result;
 use crate::topology::model::device::DeviceBuilder;
-use crate::topology::model::device_type::{DeviceType, DeviceTypRef};
-use crate::topology::model::location::{Location, LocationBuilder, LocationRef};
+pub use crate::topology::model::device_type::DeviceType;
+pub use crate::topology::model::location::Location;
+use crate::topology::model::location::LocationBuilder;
 
 pub mod device;
 pub mod device_type;
@@ -49,79 +51,51 @@ impl Topology {
     pub fn builder() -> TopologyBuilder {
         TopologyBuilder::default()
     }
-    pub fn get_device(self: &Arc<Self>, idx: usize) -> Option<DeviceRef> {
-        self.devices
-            .get(idx)
-            .map(|found| DeviceRef::new(self.clone(), found.clone(), idx))
+    pub fn get_device(self: &Arc<Self>, idx: usize) -> Option<Arc<Device>> {
+        self.devices.get(idx).cloned()
     }
-    pub fn get_device_type(self: &Arc<Self>, idx: usize) -> Option<DeviceTypRef> {
-        self.device_types
-            .get(idx)
-            .map(|found| DeviceTypRef::new(self.clone(), found.clone(), idx))
+    pub fn get_device_type(self: &Arc<Self>, idx: usize) -> Option<Arc<DeviceType>> {
+        self.device_types.get(idx).cloned()
     }
-    pub fn get_device_by_id(self: &Arc<Self>, key: u32) -> Option<DeviceRef> {
+    pub fn get_device_by_id(self: &Arc<Self>, key: u32) -> Option<Arc<Device>> {
         self.get_device(*self.device_index.get(&key)?)
     }
-    pub fn list_devices(self: &Arc<Self>) -> Vec<DeviceRef> {
-        self.list_devices_filtered(|_| true)
+    pub fn list_devices(self: &Arc<Self>) -> Vec<Arc<Device>> {
+        self.devices.clone()
     }
-    pub fn list_devices_filtered<P: FnMut(&DeviceRef) -> bool>(
-        self: &Arc<Self>,
-        filter: P,
-    ) -> Vec<DeviceRef> {
-        self.devices
-            .iter()
-            .enumerate()
-            .map(|(idx, found)| DeviceRef::new(self.clone(), found.clone(), idx))
-            .filter(filter)
-            .collect()
-    }
-    pub fn list_devices_map<P: Fn(DeviceRef) -> Option<T>, T>(
+
+    pub fn list_devices_map<P: Fn(&Arc<Device>) -> Option<T>, T>(
         self: &Arc<Self>,
         filter: P,
     ) -> Vec<T> {
-        self.devices
-            .iter()
-            .enumerate()
-            .map(|(idx, found)| DeviceRef::new(self.clone(), found.clone(), idx))
-            .flat_map(filter)
-            .collect()
+        self.devices.iter().flat_map(filter).collect()
     }
-    pub fn get_site(self: &Arc<Self>, idx: usize) -> Option<SiteRef> {
-        self.sites
-            .get(idx)
-            .map(|found| SiteRef::new(self.clone(), found.clone()))
+    pub fn get_site<'a>(self: &'a Arc<Self>, idx: usize) -> Option<&'a Arc<Site>> {
+        self.sites.get(idx)
     }
-    pub fn get_site_by_id(self: &Arc<Self>, key: u32) -> Option<SiteRef> {
+    pub fn get_site_by_id<'a>(self: &'a Arc<Self>, key: u32) -> Option<&'a Arc<Site>> {
         self.get_site(*self.site_index.get(&key)?)
     }
-    pub fn list_sites(self: &Arc<Self>) -> Vec<SiteRef> {
-        self.list_sites_map(Some)
+    pub fn list_sites(self: &Arc<Self>) -> Vec<Arc<Site>> {
+        self.list_sites_map(|s| Some(s.clone()))
     }
-    pub fn list_sites_map<P: Fn(SiteRef) -> Option<T>, T>(self: &Arc<Self>, filter: P) -> Vec<T> {
-        self.sites
-            .iter()
-            .map(|found| SiteRef::new(self.clone(), found.clone()))
-            .flat_map(filter)
-            .collect()
-    }
-    pub fn get_location(self: &Arc<Self>, idx: usize) -> Option<LocationRef> {
-        self.locations
-            .get(idx)
-            .map(|found| LocationRef::new(self.clone(), found.clone()))
-    }
-    pub fn list_locations_map<P: Fn(LocationRef) -> Option<T>, T>(
+    pub fn list_sites_map<P: Fn(&Arc<Site>) -> Option<T>, T>(
         self: &Arc<Self>,
         filter: P,
     ) -> Vec<T> {
-        self.locations
-            .iter()
-            .map(|found| LocationRef::new(self.clone(), found.clone()))
-            .flat_map(filter)
-            .collect()
+        self.sites.iter().flat_map(filter).collect()
     }
-    pub fn get_location_by_id(self: &Arc<Self>, key: u32) -> Option<LocationRef> {
-        self.get_location(*self.location_index.get(&key)?)
+    pub fn get_location(self: &Arc<Self>, idx: usize) -> Option<Arc<Location>> {
+        self.locations.get(idx).cloned()
+    }
+    pub fn list_locations_map<P: Fn(&Arc<Location>) -> Option<T>, T>(
+        self: &Arc<Self>,
+        filter: P,
+    ) -> Vec<T> {
+        self.locations.iter().flat_map(filter).collect()
+    }
+    pub fn get_location_by_id(self: &Arc<Self>, key: u32) -> Option<Arc<Location>> {
+        self.get_location(self.location_index.get(&key)?.clone())
     }
 }
 
