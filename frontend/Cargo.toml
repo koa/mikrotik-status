@@ -13,7 +13,7 @@ yew = { version = "0.20.0", features = ["csr"] }
 yewtil = { version = "0.4", features = ["future"] }
 yew-nested-router = { version = "0.1.0" }
 patternfly-yew = "0.3.0"
-graphql_client = { version = "0.11.0", features = ["reqwest"] }
+graphql_client = { version = "0.12.0", features = ["reqwest"] }
 reqwest = "0.11.13"
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.68"
@@ -27,7 +27,7 @@ js-sys = "0.3.6"
 lazy_static = "1.4.0"
 console_error_panic_hook = "0.1.7"
 itertools = { version = "0.10.5", features = ["use_alloc"] }
-cached = { version = "0.41.0", features = ["wasm", "async"] }
+cached = { version = "0.42.0", features = ["wasm", "async"] }
 tokio = { version = "1.23.0", features = ["sync"] }
 
 
