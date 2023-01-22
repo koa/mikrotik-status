@@ -12,7 +12,7 @@ serde-wasm-bindgen = "0.4"
 yew = { version = "0.20.0", features = ["csr"] }
 yewtil = { version = "0.4", features = ["future"] }
 yew-nested-router = { version = "0.1.0" }
-patternfly-yew = "0.3.0"
+patternfly-yew = { git = "https://github.com/koa/patternfly-yew.git", commit = "d05b9fc5a4364f9054cba04c006294ca6fe12e1f" }
 graphql_client = { version = "0.12.0", features = ["reqwest"] }
 reqwest = "0.11.13"
 serde = { version = "1.0.130", features = ["derive"] }

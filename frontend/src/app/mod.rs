@@ -4,6 +4,7 @@ use patternfly_yew::{BackdropViewer, Page, PageSidebar, ToastViewer};
 use reqwest::Url;
 use wasm_bindgen_futures::spawn_local;
 use yew::{function_component, html, html_nested, Context, Html, Properties};
+use yew_nested_router::prelude::use_router;
 use yew_nested_router::{Router, Switch};
 use yew_oauth2::{
     oauth2::OAuth2,
@@ -110,13 +111,15 @@ fn main_oauth2(props: &Props) -> Html {
 
 #[function_component(MainPage)]
 fn main_page() -> Html {
+    let route = use_router::<AppRoute>().and_then(|router| router.active_target);
+    let nav = route.as_ref().map(|r| r.nav_title()).unwrap_or_default();
     html! {
         <BackdropViewer>
             <ToastViewer>
                 <Failure>{"Fail"}</Failure>
                 <Authenticated>
                     <ApiContextProvider>
-                        <Page sidebar={html_nested! {<PageSidebar><AuthenticatedSidebar/></PageSidebar>}}>
+                        <Page sidebar={html_nested! {<PageSidebar><AuthenticatedSidebar/></PageSidebar>}} {nav}>
                           //logo={logo}
                             <Switch<AppRoute>
                                 render = {|r: AppRoute| r.main_content()}

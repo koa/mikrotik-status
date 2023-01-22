@@ -13,8 +13,10 @@ use yew_oauth2::{
 use crate::pages::{
     devices::DeviceList,
     sites::{
-        device_details::DeviceDetailsPage, location_details::LocationDetailsPage,
-        site_details::SiteDetailsPage, site_list::SiteListPage,
+        device_details::DeviceDetailsPage,
+        location_details::{LocationDetailsHeader, LocationDetailsPage},
+        site_details::{SiteDetailsHeader, SiteDetailsPage},
+        site_list::SiteListPage,
     },
 };
 
@@ -54,6 +56,15 @@ impl AppRoute {
             AppRoute::Location { id } => html! {<LocationDetailsPage id={*id}/>},
         }
     }
+    pub fn nav_title(&self) -> Html {
+        match self {
+            AppRoute::Sites => html!("Standorte"),
+            AppRoute::Site { id } => html!(<SiteDetailsHeader id={*id}/>),
+            AppRoute::Devices => html!("aktive Geräte"),
+            AppRoute::Device { .. } => html!("Device"),
+            AppRoute::Location { id } => html! {<LocationDetailsHeader id={*id}/>},
+        }
+    }
     pub fn unauthenticated_content(&self) -> Html {
         html!(<LocationRedirect logout_href="/" />)
     }
@@ -69,7 +80,7 @@ pub fn authenticated_sidebar() -> Html {
     });
     html! {
         <Nav>
-            <NavRouterItem<AppRoute> to={AppRoute::Sites}>{"Gebäude"}</NavRouterItem<AppRoute>>
+            <NavRouterItem<AppRoute> to={AppRoute::Sites}>{"Standorte"}</NavRouterItem<AppRoute>>
             <NavRouterItem<AppRoute> to={AppRoute::Devices}>{"Geräte"}</NavRouterItem<AppRoute>>
             <span onclick={logout}><NavItem>{"Logout"}</NavItem></span>
         </Nav>

@@ -90,6 +90,7 @@ impl Default for Caches {
 pub struct LocationDetails {
     name: String,
     devices: Vec<u32>,
+    site: Option<u32>,
 }
 
 impl LocationDetails {
@@ -99,6 +100,10 @@ impl LocationDetails {
 
     pub fn devices(&self) -> &Vec<u32> {
         &self.devices
+    }
+
+    pub fn site(&self) -> Option<u32> {
+        self.site
     }
 }
 
@@ -216,16 +221,22 @@ impl ApiContext {
             |c| &mut c.location_cache,
             |id| get_location_details::Variables { id: (*id).into() },
             |data| {
-                data.location
-                    .map(|GetLocationDetailsLocation { name, devices }| {
+                data.location.map(
+                    |GetLocationDetailsLocation {
+                         name,
+                         devices,
+                         site,
+                     }| {
                         Ok::<LocationDetails, FrontendError>(LocationDetails {
                             name,
                             devices: devices
                                 .iter()
                                 .map(|d| d.id.try_into())
                                 .collect::<Result<Vec<u32>, _>>()?,
+                            site: site.map(|s| s.id).and_then(|s| s.try_into().ok()),
                         })
-                    })
+                    },
+                )
             },
         )
         .await

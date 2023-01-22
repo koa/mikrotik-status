@@ -4,5 +4,8 @@ query GetLocationDetails($id: Int!){
         devices {
             id
         }
+        site {
+            id
+        }
     }
 }

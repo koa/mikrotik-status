@@ -10,7 +10,7 @@ div.pf_c_page__main {
     flex-wrap: wrap;
 }
 
-div.card-grid {
+.card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(10em, 1fr));
 }
