@@ -1,11 +1,16 @@
 use std::error::Error;
+use std::error::Error as StdError;
 use std::fmt::{Debug, Display, Formatter};
+use std::mem::discriminant;
 use std::num::TryFromIntError;
 
+use itertools::Itertools;
 use log::error;
 use reqwest::header::InvalidHeaderValue;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
+use yew::virtual_dom::VNode;
+use yew::{html, Html};
 
 pub struct JavascriptError {
     original_value: JsValue,
@@ -56,4 +61,49 @@ pub enum FrontendError {
     InvalidHeader(#[from] InvalidHeaderValue),
     #[error("Cannot convert int value")]
     TryFromInt(#[from] TryFromIntError),
+}
+
+impl FrontendError {
+    pub fn format_error(&self) -> Html {
+        if let FrontendError::Graphql(errors) = self {
+            errors.iter().map(format_graphql_error).collect()
+        } else {
+            html! {<ol class="pf-c-list">{format_error(Some(self))}</ol>}
+        }
+    }
+}
+
+impl PartialEq for FrontendError {
+    fn eq(&self, other: &Self) -> bool {
+        if discriminant(self) == discriminant(other) {
+            self.to_string() == other.to_string()
+        } else {
+            false
+        }
+    }
+}
+
+fn format_graphql_error(error: &graphql_client::Error) -> VNode {
+    let path = error.path.as_ref().map(|path| path.iter().join("/"));
+    html! {
+        <dl class="pf-c-description-list pf-m-horizontal pf-m-fluid pf-m-2-col">
+            if let Some(path)=path{
+                <dt class="pf-c-description-list__term">{"Pfad"}</dt>
+                <dt class="pf-c-description-list__description">{path}</dt>
+            }
+            <dt class="pf-c-description-list__term">{"Fehler"}</dt>
+            <dl class="pf-c-description-list__description">{&error.message}</dl>
+        </dl>
+    }
+}
+fn format_error(error: Option<&dyn StdError>) -> Html {
+    match error {
+        None => html! {},
+        Some(error) => html! {
+        <>
+            <li>{error.to_string()}</li>
+            {format_error(error.source())}
+        </>
+        },
+    }
 }

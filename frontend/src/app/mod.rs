@@ -1,5 +1,6 @@
+use std::rc::Rc;
+
 use lazy_static::lazy_static;
-use log::error;
 use patternfly_yew::{BackdropViewer, Page, PageSidebar, ToastViewer};
 use reqwest::Url;
 use wasm_bindgen_futures::spawn_local;
@@ -13,6 +14,8 @@ use yew_oauth2::{
 
 use route::{AppRoute, AuthenticatedSidebar, NotAuthenticatedSidebar};
 
+use crate::components::error::Error;
+use crate::error::FrontendError;
 use crate::{
     components::context::ApiContextProvider,
     graphql::{
@@ -29,9 +32,9 @@ pub mod route;
 lazy_static! {
     static ref HOME_URL: Url = format!("{}/", crate::graphql::host()).parse().unwrap();
 }
-
 pub struct App {
     oauth2_config: Option<Config>,
+    error: Option<Rc<FrontendError>>,
 }
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -40,6 +43,7 @@ pub struct Props {
 
 pub enum AppMessage {
     AuthenticationData(Config),
+    Error(FrontendError),
 }
 
 impl yew::Component for App {
@@ -48,12 +52,17 @@ impl yew::Component for App {
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
             oauth2_config: None,
+            error: None,
         }
     }
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             AppMessage::AuthenticationData(config) => {
                 self.oauth2_config = Some(config);
+                true
+            }
+            AppMessage::Error(error) => {
+                self.error = Some(Rc::new(error));
                 true
             }
         }
@@ -64,6 +73,8 @@ impl yew::Component for App {
             html! {
                 <MainOAuth2 {config}/>
             }
+        } else if let Some(error) = &self.error {
+            html! {<Error {error}/>}
         } else {
             html! {
                 <h1>{"Fetching"}</h1>
@@ -91,7 +102,7 @@ impl yew::Component for App {
                             token_url,
                         }));
                     }
-                    Err(err) => error!("Error on server {err:?}"),
+                    Err(err) => scope.send_message(AppMessage::Error(err)),
                 }
             });
         }

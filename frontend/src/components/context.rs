@@ -249,9 +249,9 @@ impl ApiContext {
             |data| {
                 data.device.map(
                     |GetDeviceDetailsDevice {
-                         id,
+                         id: _,
                          name,
-                         location,
+                         location: _,
                          device_type,
                      }| {
                         let (has_routeros, model_name) = device_type
